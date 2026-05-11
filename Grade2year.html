@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式數學：時間單位換算</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入灑花動畫套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            /* 調整為指定的極淡粉色 */
+            background-color: #FFF7FB;
+            touch-action: manipulation;
+        }
+
+        /* 點選模式的格子 */
+        .slot {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 60px;
+            height: 60px;
+            border: 3px dashed #cbd5e1;
+            border-radius: 12px;
+            margin: 0 4px;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            vertical-align: middle;
+            color: #334155;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* 輸入模式的格子 */
+        input.slot-input {
+            width: 65px;
+            height: 60px;
+            border: 3px dashed #cbd5e1;
+            border-radius: 12px;
+            margin: 0 4px;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: white;
+            text-align: center;
+            outline: none;
+            transition: all 0.2s;
+            color: #334155;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        input.slot-input:focus {
+            border-style: solid;
+            border-color: #f43f5e;
+            background-color: #fff1f2;
+            box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.2);
+        }
+
+        /* 正在填答的粉色高亮與呼吸燈 */
+        .slot.active {
+            border-style: solid;
+            border-color: #f43f5e; /* Rose 500 */
+            background-color: #fff1f2; /* Rose 50 */
+            animation: pulse-pink 1.5s infinite;
+        }
+
+        .slot.filled {
+            border-style: solid;
+            border-color: #f43f5e;
+            color: #be123c;
+        }
+
+        /* 答對的綠色狀態 */
+        .slot.correct, input.slot-input.correct {
+            border-style: solid;
+            border-color: #10b981;
+            background-color: #ecfdf5;
+            color: #065f46;
+        }
+
+        @keyframes pulse-pink {
+            0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+            70% { box-shadow: 0 0 0 12px rgba(244, 63, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+        }
+
+        .option-btn {
+            background-color: white;
+            border: 2px solid #fecdd3;
+            border-radius: 16px;
+            padding: 12px 24px;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(244, 63, 94, 0.15);
+            color: #be123c;
+        }
+
+        .option-btn:active {
+            transform: translateY(3px);
+            box-shadow: none;
+            background-color: #fff1f2;
+        }
+
+        .step-container {
+            border-left: 6px solid #e2e8f0;
+            padding-left: 20px;
+            margin-bottom: 28px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease-out;
+            display: none;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 0 16px 16px 0;
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+
+        .step-container.active {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+
+        .step-container.completed {
+            border-left-color: #10b981;
+            background: rgba(236, 253, 245, 0.8);
+        }
+
+        .math-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 28px;
+            font-weight: 700;
+            min-height: 65px;
+            color: #334155;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 單選按鈕美化 (首頁) */
+        .radio-card { display: inline-block; cursor: pointer; }
+        .radio-card input { display: none; }
+        .radio-card .card-content {
+            border: 3px solid #fecdd3;
+            border-radius: 16px;
+            padding: 14px 28px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #881337;
+            transition: all 0.2s;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .radio-card input:checked + .card-content {
+            border-color: #f43f5e;
+            background-color: #fff1f2;
+            color: #e11d48;
+            box-shadow: 0 6px 12px rgba(244, 63, 94, 0.2);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+
+    <!-- 音效 -->
+    <audio id="snd-correct" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
+    <audio id="snd-wrong" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
+
+    <!-- 🌸 啟動設定選單 -->
+    <div id="setup-screen" class="absolute inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white/90 backdrop-blur-md rounded-[2rem] p-8 md:p-10 w-full max-w-3xl shadow-2xl border-4 border-white">
+            <h1 class="text-4xl font-bold text-center text-rose-600 mb-8 drop-shadow-sm">🌸 時間單位換算挑戰</h1>
+            
+            <div class="mb-10 bg-rose-50 p-6 rounded-2xl">
+                <h2 class="text-2xl font-bold text-rose-800 mb-4 flex items-center">
+                    <span class="bg-rose-200 p-2 rounded-lg mr-3">1</span> 選擇題型分類
+                </h2>
+                <div class="flex flex-wrap gap-4">
+                    <label class="radio-card">
+                        <input type="radio" name="category" value="1" checked>
+                        <div class="card-content">年月換月 (點選)</div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="category" value="2">
+                        <div class="card-content">月換年月 (點選)</div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="category" value="3">
+                        <div class="card-content">綜合題型 (鍵盤輸入)</div>
+                    </label>
+                </div>
+                <p class="text-base text-rose-600 mt-4 font-bold bg-white p-3 rounded-xl shadow-sm">
+                    💡 提示：年月換算是將「幾年幾個月」換成「幾個月」。
+                </p>
+            </div>
+
+            <div class="mb-10 bg-rose-50 p-6 rounded-2xl">
+                <h2 class="text-2xl font-bold text-rose-800 mb-4 flex items-center">
+                    <span class="bg-rose-200 p-2 rounded-lg mr-3">2</span> 選擇題目數量
+                </h2>
+                <div class="flex flex-wrap gap-4">
+                    <label class="radio-card">
+                        <input type="radio" name="q-count" value="5" checked>
+                        <div class="card-content">5 題</div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="q-count" value="10">
+                        <div class="card-content">10 題</div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="q-count" value="15">
+                        <div class="card-content">15 題</div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="q-count" value="20">
+                        <div class="card-content">20 題</div>
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-rose-500 hover:bg-rose-600 text-white py-5 rounded-2xl text-3xl font-bold shadow-xl transition-transform active:scale-95">
+                🚀 開始作答
+            </button>
+        </div>
+    </div>
+
+    <!-- 🌸 遊戲主畫面 -->
+    <div id="game-screen" class="hidden h-full flex-col w-full">
+        <!-- 導覽列 -->
+        <nav class="bg-rose-500 shadow-md z-10 flex-shrink-0">
+            <div class="flex items-center justify-between px-4 py-3 text-white">
+                <div class="flex items-center gap-3">
+                    <button onclick="confirmReturn()" class="bg-white text-rose-600 px-4 py-2 rounded-xl hover:bg-rose-50 font-bold shadow-sm transition-colors text-sm md:text-base">
+                        🏠 回首頁
+                    </button>
+                    <div id="game-title" class="hidden md:block font-bold text-xl whitespace-nowrap">時間單位換算</div>
+                </div>
+                
+                <div class="flex items-center space-x-4 text-base md:text-xl font-bold">
+                    <div class="flex items-center bg-rose-700 px-4 py-1.5 rounded-xl shadow-inner">
+                        <span class="mr-2">⏱️</span>
+                        <span id="timer">00:00</span>
+                    </div>
+                    <div class="flex items-center bg-yellow-400 text-yellow-900 px-4 py-1.5 rounded-xl shadow-sm">
+                        <span class="mr-2">🏆</span>
+                        <span id="score">0 分</span>
+                    </div>
+                </div>
+            </div>
+            <!-- 分頁切換區 -->
+            <div id="nav-tabs" class="flex overflow-x-auto no-scrollbar border-t border-rose-400 bg-rose-50 px-2 space-x-3 py-3 shadow-inner">
+                <!-- 分頁按鈕 -->
+            </div>
+        </nav>
+
+        <!-- 主要內容區 -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+            
+            <!-- 左側：題目區 -->
+            <section class="w-full md:w-2/5 bg-white/80 backdrop-blur-sm p-6 md:p-8 border-r border-pink-200 overflow-y-auto md:sticky md:top-0 shadow-[4px_0_24px_rgba(244,63,94,0.05)] z-0">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <span id="q-index-label" class="bg-rose-100 text-rose-800 px-5 py-2 rounded-full text-lg font-bold border border-rose-200 shadow-sm">題目 1</span>
+                        <button onclick="speakText()" class="flex items-center gap-2 bg-rose-500 text-white px-5 py-2 rounded-full hover:bg-rose-600 font-bold transition-colors shadow-md">
+                            🔊 <span class="hidden sm:inline">唸題目</span>
+                        </button>
+                    </div>
+                    <h2 id="q-text" class="text-3xl md:text-4xl font-bold leading-relaxed text-gray-800">
+                        <!-- 題目文字 -->
+                    </h2>
+                    <div id="q-hint" class="bg-yellow-50 border-l-8 border-yellow-400 p-5 rounded-r-2xl text-yellow-800 font-bold text-xl shadow-sm">
+                        <!-- 提示區 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右側：作答區 -->
+            <section class="w-full md:w-3/5 p-6 md:p-8 overflow-y-auto flex flex-col pb-40 md:pb-8">
+                <div id="steps-area" class="flex-1 max-w-2xl mx-auto w-full">
+                    <!-- 步驟動態產生 -->
+                </div>
+
+                <!-- 底部操作區 -->
+                <div id="bottom-panel" class="fixed md:sticky bottom-0 left-0 w-full md:w-auto bg-white/95 md:bg-transparent backdrop-blur-md md:backdrop-blur-none border-t border-pink-200 md:border-none p-4 md:p-0 md:mt-10 shadow-[0_-15px_30px_-5px_rgba(244,63,94,0.1)] md:shadow-none z-20">
+                    <div class="max-w-2xl mx-auto bg-white md:bg-transparent rounded-3xl p-2 md:p-0">
+                        <!-- 鍵盤輸入提示 (綜合模式顯示) -->
+                        <div id="input-hint" class="hidden text-center text-rose-700 text-xl font-bold mb-4 bg-rose-50 py-3 rounded-2xl border-2 border-rose-200 shadow-sm">
+                            ⌨️ 請點擊上方格子，使用鍵盤輸入數字
+                        </div>
+                        
+                        <!-- 選項區 (點選模式顯示) -->
+                        <div id="options-panel">
+                            <div class="text-center text-rose-500 mb-3 text-lg font-bold">👇 點擊下方選項填入格子</div>
+                            <div id="options-container" class="flex flex-wrap justify-center gap-4 mb-6">
+                                <!-- 選項按鈕 -->
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center">
+                            <button id="check-btn" onclick="checkCurrentStep()" class="w-full md:w-4/5 bg-green-500 hover:bg-green-600 text-white px-8 py-5 rounded-[2rem] text-3xl font-bold shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-3 border-4 border-green-400">
+                                ✅ 檢查答案
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 回首頁確認彈窗 -->
+    <div id="home-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl border-4 border-rose-200">
+            <div class="text-7xl mb-4">🏠</div>
+            <h3 class="text-3xl font-bold mb-4 text-slate-800">要回到首頁嗎？</h3>
+            <p class="text-rose-600 font-bold text-lg mb-8">目前的作答進度會全部消失喔！</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="document.getElementById('home-modal').style.display='none'" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-bold text-xl transition-colors">取消</button>
+                <button onclick="executeReturn()" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-4 rounded-2xl font-bold text-xl transition-colors shadow-lg">確定離開</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完成所有題目彈窗 -->
+    <div id="finish-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-[2rem] p-10 max-w-md w-full text-center shadow-2xl border-4 border-rose-300 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 text-9xl opacity-20">🌸</div>
+            <div class="absolute -bottom-10 -left-10 text-9xl opacity-20">🎉</div>
+            <div class="text-8xl mb-6 relative z-10 animate-bounce">🏆</div>
+            <h3 class="text-4xl font-bold mb-4 text-rose-600 relative z-10">挑戰成功！</h3>
+            <div class="bg-rose-50 rounded-2xl p-6 mb-8 relative z-10 border-2 border-rose-100">
+                <p id="finish-stats" class="text-rose-800 font-bold text-2xl leading-loose">
+                    <!-- 成績單 -->
+                </p>
+            </div>
+            <div class="flex flex-col gap-4 relative z-10">
+                <button onclick="executeReturn()" class="bg-rose-500 hover:bg-rose-600 text-white py-5 rounded-2xl font-bold text-2xl transition-colors shadow-xl">🏠 回到首頁</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 題材庫
+        const subjects = [
+            "水果軟糖的保存期限", "爺爺種樹的時間", "奶油餅乾的保存期限", "哥哥學韓文的時間", 
+            "鮮奶的保存期限", "小玉參加音樂班", "工程建設需要", "這台電腦用了", 
+            "出國留學的時間", "妹妹學鋼琴", "房屋貸款繳了", "小狗的年齡", 
+            "冰箱保固期", "汽車分期付款", "弟弟上幼兒園", "學習游泳的時間", 
+            "手錶電池壽命", "宇宙特展的展期", "參加畫畫班", "種植蘋果樹", 
+            "自行車保固期", "租屋的合約", "學習跆拳道", "姐姐戴牙套的時間"
+        ];
+
+        let allQuestions = []; 
+        let currentMode = 1; 
+        let totalQuestions = 5;
+        
+        let currentQIndex = 0;
+        let currentStepIndex = 0;
+        let score = 0;
+        let timeElapsed = 0; 
+        let timerInterval;
+        let stepScores = [];
+        let questionsCompleted = [];
+
+        // 產生題庫庫存 (共 60 題)
+        function generateData() {
+            let cat1 = []; // 年月換月 (連加法)
+            let cat2 = []; // 月換年月 (連減法)
+            let cat3 = []; // 綜合
+
+            // ====================
+            // 題型 1: 年月換月 (改用累加)
+            // ====================
+            for(let i=0; i<20; i++) {
+                let y = Math.floor(Math.random() * 3) + 1; // 1, 2, 3 年
+                let m = Math.floor(Math.random() * 12); // 0~11 個月
+                if (y === 1 && m === 0) m = Math.floor(Math.random() * 11) + 1;
+
+                let totalM = y * 12 + m;
+                let text = `${subjects[i % subjects.length]}是 <mark class="bg-yellow-200 px-2 rounded-lg">${y} 年${m>0 ? ` ${m} 個月` : ''}</mark>，請問也可以說是幾個月？`;
+
+                let steps = [];
+                let currentM = 12;
+                let stepCount = 1;
+                let optionsSet = new Set(['12']);
+
+                // 年份累加處理
+                if (y > 1) {
+                    steps.push({
+                        type: 'math',
+                        label: `步驟 ${stepCount}：算 2 年有幾個月 (12個月 + 12個月)`,
+                        content: ['12', '+', '12', '=', '24'],
+                        placeholders: [0, 2, 4]
+                    });
+                    currentM = 24;
+                    stepCount++;
+                    optionsSet.add('24');
+                }
+                if (y > 2) {
+                    steps.push({
+                        type: 'math',
+                        label: `步驟 ${stepCount}：算 3 年有幾個月 (24個月 + 12個月)`,
+                        content: ['24', '+', '12', '=', '36'],
+                        placeholders: [0, 2, 4]
+                    });
+                    currentM = 36;
+                    stepCount++;
+                    optionsSet.add('36');
+                }
+
+                // 月份處理
+                if (m > 0) {
+                    steps.push({
+                        type: 'math',
+                        label: `步驟 ${stepCount}：再加上原來的 ${m} 個月`,
+                        content: [String(currentM), '+', String(m), '=', String(totalM)],
+                        placeholders: [0, 2, 4]
+                    });
+                    optionsSet.add(String(m));
+                    optionsSet.add(String(totalM));
+                    stepCount++;
+                }
+
+                steps.push({
+                    type: 'ans',
+                    label: `步驟 ${stepCount}：最後答案`,
+                    content: ['答：(', String(totalM), ' 個月)'],
+                    placeholders: [1]
+                });
+
+                // 補齊選項
+                while(optionsSet.size < 6) {
+                    optionsSet.add(String(Math.floor(Math.random()*40)+1));
+                }
+
+                cat1.push({ id: `c1-${i}`, type: 1, text, steps, options: Array.from(optionsSet) });
+            }
+
+            // ====================
+            // 題型 2: 月換年月 (連減法) - 修復最後步驟陣列偏移 Bug
+            // ====================
+            for(let i=0; i<20; i++) {
+                let totalM = Math.floor(Math.random() * (47 - 13 + 1)) + 13; 
+                let text = `${subjects[(i + 12) % subjects.length]}是 <mark class="bg-yellow-200 px-2 rounded-lg">${totalM} 個月</mark>，請問也可以說是幾年${totalM % 12 !== 0 ? '幾個月' : ''}？`;
+
+                let steps = [];
+                let curr = totalM;
+                let stepCount = 1;
+                let optionsSet = new Set([String(totalM), String(12)]);
+
+                while(curr >= 12) {
+                    let next = curr - 12;
+                    steps.push({
+                        type: 'math',
+                        label: `步驟 ${stepCount}：第 ${stepCount} 次扣掉 1 年 (12個月)`,
+                        content: [String(curr), '-', '12', '=', String(next)],
+                        placeholders: [0, 2, 4]
+                    });
+                    optionsSet.add(String(curr));
+                    optionsSet.add(String(next));
+                    curr = next;
+                    stepCount++;
+                }
+
+                let y = stepCount - 1;
+                let m = curr;
+                
+                // 【Bug 修正區】將陣列的順序與 placeholders 對齊
+                let ansContent;
+                let ansPlaceholders;
+                optionsSet.add(String(y));
+
+                if(m > 0) {
+                    // 正確陣列: 0: '答：(', 1: y, 2: ' 年 ', 3: m, 4: ' 個月)'
+                    ansContent = ['答：(', String(y), ' 年 ', String(m), ' 個月)'];
+                    ansPlaceholders = [1, 3];
+                    optionsSet.add(String(m));
+                } else {
+                    // 正確陣列: 0: '答：(', 1: y, 2: ' 年)'
+                    ansContent = ['答：(', String(y), ' 年)'];
+                    ansPlaceholders = [1];
+                }
+
+                steps.push({
+                    type: 'ans',
+                    label: `步驟 ${stepCount}：最後答案`,
+                    content: ansContent,
+                    placeholders: ansPlaceholders
+                });
+
+                while(optionsSet.size < 6) {
+                    optionsSet.add(String(Math.floor(Math.random()*40)+1));
+                }
+
+                cat2.push({ id: `c2-${i}`, type: 2, text, steps, options: Array.from(optionsSet) });
+            }
+
+            // ====================
+            // 題型 3: 綜合 
+            // ====================
+            let mix1 = JSON.parse(JSON.stringify(cat1.slice(0, 10)));
+            let mix2 = JSON.parse(JSON.stringify(cat2.slice(0, 10)));
+            cat3 = mix1.concat(mix2).sort(() => Math.random() - 0.5);
+
+            return { cat1, cat2, cat3 };
+        }
+
+        // 啟動遊戲
+        function startGame() {
+            const catRadio = document.querySelector('input[name="category"]:checked').value;
+            totalQuestions = parseInt(document.querySelector('input[name="q-count"]:checked').value);
+            currentMode = parseInt(catRadio);
+
+            const db = generateData();
+            
+            if (currentMode === 1) {
+                allQuestions = db.cat1.slice(0, totalQuestions);
+                document.getElementById('game-title').innerText = "🌸 年月換算挑戰";
+            } else if (currentMode === 2) {
+                allQuestions = db.cat2.slice(0, totalQuestions);
+                document.getElementById('game-title').innerText = "🌸 月換年月挑戰";
+            } else {
+                allQuestions = db.cat3.slice(0, totalQuestions);
+                document.getElementById('game-title').innerText = "🌸 綜合輸入挑戰";
+            }
+
+            // 初始化狀態
+            score = 0;
+            timeElapsed = 0;
+            currentQIndex = 0;
+            stepScores = allQuestions.map(q => new Array(q.steps.length).fill(null));
+            questionsCompleted = new Array(totalQuestions).fill(false);
+            updateScoreDisplay();
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            const gameScreen = document.getElementById('game-screen');
+            gameScreen.classList.remove('hidden');
+            gameScreen.classList.add('flex');
+
+            initNav();
+            loadQuestion(0);
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeElapsed++;
+                const mins = Math.floor(timeElapsed / 60).toString().padStart(2, '0');
+                const secs = (timeElapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        // 顯示回首頁確認彈窗
+        function confirmReturn() {
+            document.getElementById('home-modal').style.display = 'flex';
+        }
+
+        // 實際執行回首頁
+        function executeReturn() {
+            clearInterval(timerInterval);
+            document.getElementById('home-modal').style.display = 'none';
+            document.getElementById('finish-modal').style.display = 'none';
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('flex');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+
+        function initNav() {
+            const nav = document.getElementById('nav-tabs');
+            nav.innerHTML = '';
+            allQuestions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                btn.id = `nav-btn-${index}`;
+                btn.className = `px-6 py-2.5 rounded-xl whitespace-nowrap font-bold transition-all text-lg shadow-sm border ${index === 0 ? 'bg-white text-rose-600 border-rose-200' : 'bg-rose-100 text-rose-500 border-transparent hover:bg-rose-200'}`;
+                btn.innerText = `第 ${index + 1} 題`;
+                btn.onclick = () => loadQuestion(index);
+                nav.appendChild(btn);
+            });
+        }
+
+        function loadQuestion(index) {
+            currentQIndex = index;
+            currentStepIndex = 0;
+            const q = allQuestions[index];
+            
+            // 更新導覽列
+            allQuestions.forEach((_, i) => {
+                const btn = document.getElementById(`nav-btn-${i}`);
+                if (i === index) {
+                    btn.className = 'px-6 py-2.5 rounded-xl whitespace-nowrap font-bold shadow-sm bg-white text-rose-600 border-2 border-rose-300';
+                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                } else {
+                    const isDone = questionsCompleted[i];
+                    btn.className = `px-6 py-2.5 rounded-xl whitespace-nowrap font-bold transition-all border-transparent ${isDone ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-500 hover:bg-rose-200'}`;
+                    if(isDone && !btn.innerText.includes('✔')) btn.innerText += ' ✔';
+                }
+            });
+
+            document.getElementById('q-index-label').innerText = `題目 ${index + 1} / ${totalQuestions}`;
+            document.getElementById('q-text').innerHTML = q.text;
+            
+            const hintDiv = document.getElementById('q-hint');
+            if (q.type === 1) {
+                hintDiv.innerHTML = "💡 提示：<br>1. 先將年換月 (2年就是12+12，3年就是24+12)<br>2. 再加上原有的月";
+            } else {
+                hintDiv.innerHTML = "💡 提示：<br>每次扣掉 12 個月 (1年)，看看能扣幾次，剩下的就是月。";
+            }
+            
+            const optsPanel = document.getElementById('options-panel');
+            const inputHint = document.getElementById('input-hint');
+            
+            if (currentMode === 3) {
+                optsPanel.classList.add('hidden');
+                inputHint.classList.remove('hidden');
+            } else {
+                optsPanel.classList.remove('hidden');
+                inputHint.classList.add('hidden');
+                renderOptions();
+            }
+
+            document.getElementById('steps-area').innerHTML = '';
+            
+            let lastCompletedStep = -1;
+            for(let i=0; i<q.steps.length; i++) {
+                if (stepScores[currentQIndex][i] !== null) {
+                    renderStep(i, true);
+                    lastCompletedStep = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (lastCompletedStep < q.steps.length - 1) {
+                currentStepIndex = lastCompletedStep + 1;
+                renderStep(currentStepIndex, false);
+            } else {
+                currentStepIndex = q.steps.length - 1; 
+                showToast("這題已經完成囉！", "success");
+            }
+        }
+
+        function renderOptions() {
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            const q = allQuestions[currentQIndex];
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => fillSlot(opt);
+                container.appendChild(btn);
+            });
+        }
+
+        function renderStep(stepIdx, isCompleted) {
+            const stepData = allQuestions[currentQIndex].steps[stepIdx];
+            const stepsArea = document.getElementById('steps-area');
+            
+            const stepDiv = document.createElement('div');
+            stepDiv.id = `step-${stepIdx}`;
+            stepDiv.className = `step-container active ${isCompleted ? 'completed' : ''}`;
+            
+            const label = document.createElement('div');
+            label.className = `text-lg font-bold mb-3 ${isCompleted ? 'text-green-600' : 'text-rose-600'}`;
+            label.innerText = stepData.label + (isCompleted ? ' ✔' : '');
+            stepDiv.appendChild(label);
+
+            const row = document.createElement('div');
+            row.className = 'math-row';
+            
+            stepData.content.forEach((item, i) => {
+                if (stepData.placeholders.includes(i)) {
+                    if (currentMode === 3) {
+                        const slot = document.createElement('input');
+                        slot.type = 'tel';
+                        slot.className = `slot-input ${isCompleted ? 'correct' : ''}`;
+                        slot.dataset.expected = item;
+                        slot.maxLength = 3;
+                        if (isCompleted) {
+                            slot.value = item;
+                            slot.readOnly = true;
+                        }
+                        row.appendChild(slot);
+                    } else {
+                        const slot = document.createElement('div');
+                        slot.className = `slot ${isCompleted ? 'correct filled' : ''}`;
+                        slot.dataset.expected = item;
+                        if (isCompleted) {
+                            slot.innerText = item;
+                        } else {
+                            slot.onclick = (e) => clearSlot(e.target);
+                        }
+                        row.appendChild(slot);
+                    }
+                } else {
+                    const span = document.createElement('span');
+                    span.innerText = item;
+                    row.appendChild(span);
+                }
+            });
+
+            stepDiv.appendChild(row);
+            stepsArea.appendChild(stepDiv);
+            
+            if (!isCompleted) {
+                highlightNextSlot();
+                setTimeout(() => stepDiv.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            }
+        }
+
+        function fillSlot(value) {
+            if (currentMode === 3) return;
+            const activeSlot = document.querySelector('.slot.active');
+            if (activeSlot) {
+                activeSlot.innerText = value;
+                activeSlot.classList.add('filled');
+                activeSlot.classList.remove('active');
+                highlightNextSlot();
+            }
+        }
+
+        function clearSlot(slot) {
+            if (slot.classList.contains('correct')) return;
+            slot.innerText = '';
+            slot.classList.remove('filled');
+            highlightNextSlot();
+        }
+
+        function highlightNextSlot() {
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+            const currentStepDiv = document.getElementById(`step-${currentStepIndex}`);
+            if (!currentStepDiv || currentMode === 3) return;
+
+            const emptySlot = currentStepDiv.querySelector('.slot:not(.filled)');
+            if (emptySlot) {
+                emptySlot.classList.add('active');
+            }
+        }
+
+        // 觸發灑花動畫
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#f43f5e', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa'],
+                    disableForReducedMotion: true
+                });
+            }
+        }
+
+        function checkCurrentStep() {
+            const currentStepDiv = document.getElementById(`step-${currentStepIndex}`);
+            if (!currentStepDiv || currentStepDiv.classList.contains('completed')) return;
+
+            let allFilled = true;
+            let isCorrect = true;
+            let slots;
+
+            if (currentMode === 3) {
+                slots = currentStepDiv.querySelectorAll('input.slot-input');
+                slots.forEach(s => { 
+                    if (!s.value.trim()) allFilled = false; 
+                    if (s.value.trim() !== s.dataset.expected) isCorrect = false;
+                });
+            } else {
+                slots = currentStepDiv.querySelectorAll('.slot');
+                slots.forEach(s => { 
+                    if (!s.innerText.trim()) allFilled = false; 
+                    if (s.innerText.trim() !== s.dataset.expected) isCorrect = false;
+                });
+            }
+
+            if (!allFilled) {
+                showToast("請填滿所有空格喔！", "info");
+                return;
+            }
+
+            if (isCorrect) {
+                // 標記為正確
+                slots.forEach(s => {
+                    s.classList.add('correct');
+                    if (currentMode === 3) s.readOnly = true;
+                    else s.onclick = null;
+                });
+                currentStepDiv.classList.add('completed');
+                currentStepDiv.querySelector('div').innerText += ' ✔';
+                currentStepDiv.querySelector('div').classList.replace('text-rose-600', 'text-green-600');
+                
+                if (stepScores[currentQIndex][currentStepIndex] === null) {
+                    score += 10;
+                    stepScores[currentQIndex][currentStepIndex] = true;
+                    updateScoreDisplay();
+                }
+
+                const q = allQuestions[currentQIndex];
+                if (currentStepIndex < q.steps.length - 1) {
+                    // 還有下一步，播短音效
+                    document.getElementById('snd-correct').play();
+                    currentStepIndex++;
+                    setTimeout(() => renderStep(currentStepIndex, false), 500);
+                } else {
+                    // 🎉 該題完結：播放專屬語音讚美 + 灑花動畫
+                    questionsCompleted[currentQIndex] = true;
+                    speakPraise(); 
+                    triggerConfetti();
+                    showToast("這題完成了！太棒了！", "success");
+                    
+                    // 檢查是否全部通關
+                    if (questionsCompleted.every(v => v === true)) {
+                        setTimeout(finishGame, 2000); 
+                    }
+                }
+            } else {
+                document.getElementById('snd-wrong').play();
+                showToast("答案不對，再想想看喔！", "error");
+                
+                if (currentMode === 3) {
+                    slots.forEach(s => {
+                        if (s.value.trim() !== s.dataset.expected) s.value = '';
+                    });
+                }
+                if (stepScores[currentQIndex][currentStepIndex] === null) {
+                    stepScores[currentQIndex][currentStepIndex] = false;
+                }
+            }
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score').innerText = `${score} 分`;
+        }
+
+        // 專用語音讚美 (好棒喔！)
+        function speakPraise() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                // 依照您的需求固定念出「好棒喔！」
+                const utterance = new SpeechSynthesisUtterance("好棒喔！");
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.2; 
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        function showToast(msg, type = "info") {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-24 left-1/2 -translate-x-1/2 px-8 py-4 rounded-full text-white text-2xl font-bold shadow-2xl transition-all z-50 transform scale-100 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-rose-500' : 'bg-slate-700'
+            }`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            
+            toast.animate([
+                { opacity: 0, transform: 'translate(-50%, -20px)' },
+                { opacity: 1, transform: 'translate(-50%, 0)' }
+            ], { duration: 300 });
+
+            setTimeout(() => {
+                toast.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 });
+                setTimeout(() => toast.remove(), 290);
+            }, 2500);
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            const m = Math.floor(timeElapsed / 60).toString().padStart(2, '0');
+            const s = (timeElapsed % 60).toString().padStart(2, '0');
+            
+            document.getElementById('finish-stats').innerHTML = `
+                ⏳ 總花費時間：${m}:${s}<br>
+                ⭐ 總獲得分數：${score} 分
+            `;
+            document.getElementById('finish-modal').style.display = 'flex';
+        }
+
+        function speakText() {
+            const text = document.getElementById('q-text').innerText;
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel(); 
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 0.85; 
+                speechSynthesis.speak(utterance);
+            } else {
+                alert('您的瀏覽器不支援語音朗讀功能喔。');
+            }
+        }
+    </script>
+</body>
+</html>
