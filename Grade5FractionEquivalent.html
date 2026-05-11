@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>等值分數練習 - 互動學習單</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入灑花特效套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0fdf4;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 數學式樣式 */
+        .math { font-size: 28px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: #1f2937; }
+        .fraction { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; vertical-align: middle; }
+        .fraction span:first-child { border-bottom: 2px solid #000; padding: 0 6px; width: 100%; text-align: center; }
+        .fraction span:last-child { padding: 0 6px; width: 100%; text-align: center; }
+        
+        /* Slot 填答格 */
+        .slot {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 50px;
+            height: 50px;
+            border: 2px dashed #9ca3af;
+            border-radius: 8px;
+            background-color: white;
+            font-size: 24px;
+            font-weight: bold;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            vertical-align: middle;
+        }
+        .slot.filled {
+            border: 2px solid #3b82f6;
+            background-color: #eff6ff;
+            color: #2563eb;
+        }
+        .slot.correct {
+            border: 2px solid #22c55e;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+        .slot.active-target {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 選項按鈕 */
+        .option-btn {
+            min-width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background-color: white;
+            border: 2px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 24px;
+            font-weight: bold;
+            color: #374151;
+            transition: all 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .option-btn:active { transform: scale(0.95); }
+        .option-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #f3f4f6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Mode Selection Cards */
+        .mode-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+        @keyframes tada {
+            0% { transform: scale(1); }
+            10%, 20% { transform: scale(0.9) rotate(-3deg); }
+            30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+            40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        .animate-tada { animation: tada 1s ease-in-out; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        mark { background-color: #fef08a; padding: 0 4px; border-radius: 4px; color: #854d0e; }
+        
+        /* 頁面切換控制 */
+        .page-section { display: none; height: 100vh; flex-direction: column; }
+        .page-section.active { display: flex; }
+    </style>
+</head>
+<body class="bg-green-50 text-gray-800 overflow-hidden">
+
+    <!-- SVG Definitions for visual mode -->
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true">
+        <defs>
+            <pattern id="stripePattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="8" stroke="#9ca3af" stroke-width="3" opacity="0.5" />
+            </pattern>
+        </defs>
+    </svg>
+
+    <!-- 1. 主選單頁面 (Home Screen) -->
+    <div id="home-screen" class="page-section active bg-gradient-to-br from-green-50 to-blue-50 overflow-y-auto">
+        <div class="flex-1 flex flex-col items-center justify-center p-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-green-700 mb-2 tracking-wide text-center">等值分數練習</h1>
+            <p class="text-xl text-gray-600 mb-12">請選擇你想練習的主題</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full px-4">
+                
+                <!-- 圖示互動 -->
+                <div onclick="openCountSelection('visual')" class="mode-card bg-white rounded-3xl p-6 border-4 border-purple-100 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-6 text-4xl">📊</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">圖示互動</h2>
+                    <p class="text-gray-500 text-sm">透過圖形切割與合併<br>了解擴分約分的原理</p>
+                </div>
+
+                <!-- 擴分 -->
+                <div onclick="openCountSelection('amplification')" class="mode-card bg-white rounded-3xl p-6 border-4 border-blue-100 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6 text-4xl">✖️</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">擴分練習</h2>
+                    <p class="text-gray-500 text-sm">練習將分子和分母<br>同乘以一個數</p>
+                </div>
+
+                <!-- 約分 -->
+                <div onclick="openCountSelection('simplification')" class="mode-card bg-white rounded-3xl p-6 border-4 border-green-100 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 text-4xl">➗</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">約分練習</h2>
+                    <p class="text-gray-500 text-sm">練習將分子和分母<br>同除以一個數</p>
+                </div>
+
+                <!-- 綜合 -->
+                <div onclick="openCountSelection('mixed')" class="mode-card bg-white rounded-3xl p-6 border-4 border-orange-100 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6 text-4xl">💪</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">綜合挑戰</h2>
+                    <p class="text-gray-500 text-sm">混合所有的題型<br>成為等值分數大師！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 遊戲介面 (Game Screen) -->
+    <div id="game-screen" class="page-section relative">
+        <!-- 頂部導覽列 -->
+        <header class="bg-white shadow-sm z-10 flex-none">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                <button onclick="backToHome()" class="text-gray-500 hover:text-green-600 font-bold px-3 py-1 rounded-lg border border-transparent hover:border-green-200 transition-colors text-sm">
+                    ⌂ 主選單
+                </button>
+                <div class="flex-1 mx-4 overflow-hidden">
+                    <div class="flex space-x-2 overflow-x-auto no-scrollbar pb-1 justify-start md:justify-center scroll-smooth" id="nav-container">
+                        <!-- 題目按鈕由 JS 生成 -->
+                    </div>
+                </div>
+                <div class="w-16"></div> <!-- Spacer for balance -->
+            </div>
+        </header>
+
+        <!-- 主內容 -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+            <!-- 左側：題目區 -->
+            <section class="bg-green-50 p-6 md:w-1/3 md:h-full flex-none shadow-inner border-b md:border-b-0 md:border-r border-green-100 flex flex-col justify-center items-center z-0 relative">
+                <div class="sticky top-0 w-full text-center">
+                    <div class="bg-white rounded-2xl p-6 shadow-md border-2 border-green-200 inline-block min-w-[280px] max-w-[340px]">
+                        <h2 class="text-green-600 font-bold mb-4 text-xl tracking-wider flex items-center justify-center gap-2">
+                            觀察題目
+                            <button onclick="speakText('請觀察題目與圖形。' + currentHint)" class="text-blue-500 hover:bg-blue-100 rounded-full p-1" title="語音報讀">🔊</button>
+                        </h2>
+                        <div id="question-display" class="flex justify-center items-center py-4 flex-col"></div>
+                        <div id="question-hint" class="mt-4 text-sm text-gray-600 bg-yellow-50 border border-yellow-200 p-3 rounded-lg font-bold"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右側：步驟區 -->
+            <section class="flex-1 bg-white overflow-y-auto p-4 md:p-8 relative scroll-smooth" id="steps-container">
+                <div class="max-w-2xl mx-auto pb-20 space-y-8" id="steps-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 選擇題數視窗 -->
+    <div id="count-modal" class="modal-overlay">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">選擇練習題數</h3>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <button onclick="startGame(5)" class="py-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 font-bold text-xl text-green-700 transition-all">5 題</button>
+                <button onclick="startGame(10)" class="py-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 font-bold text-xl text-green-700 transition-all">10 題</button>
+                <button onclick="startGame(15)" class="py-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 font-bold text-xl text-green-700 transition-all">15 題</button>
+                <button onclick="startGame(20)" class="py-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 font-bold text-xl text-green-700 transition-all">20 題</button>
+            </div>
+            <button onclick="closeCountModal()" class="w-full py-3 text-gray-500 hover:bg-gray-100 rounded-xl font-medium">取消</button>
+        </div>
+    </div>
+
+    <!-- 完成視窗 -->
+    <div id="completion-modal" class="modal-overlay">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2" id="modal-title">太棒了！</h3>
+            <p class="text-gray-600 mb-6" id="modal-msg">這題完成了。</p>
+            <div class="flex flex-col space-y-3">
+                <button id="modal-next-btn" onclick="nextQuestion()" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg transition-colors">
+                    下一題 ➜
+                </button>
+                <button id="modal-home-btn" onclick="backToHome()" class="hidden w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold shadow-lg transition-colors">
+                    回到主選單
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 音訊設定與 TTS 報讀 ---
+        let audioCtx = null;
+        let currentHint = ""; // 給 TTS 使用的目前提示詞
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playCorrectSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+            osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 停止先前的語音
+                // 清理 HTML 標籤
+                const cleanText = text.replace(/<[^>]*>?/gm, '');
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("抱歉，您的瀏覽器不支援語音報讀功能。");
+            }
+        }
+
+        // --- 遊戲狀態 ---
+        let currentMode = ''; 
+        let totalQuestions = 0;
+        let generatedQuestions = [];
+        let currentQuestionIndex = 0;
+        let currentStepIndex = 0;
+        let questionState = {}; 
+
+        // --- DOM Elements ---
+        const homeScreen = document.getElementById('home-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const countModal = document.getElementById('count-modal');
+        const navContainer = document.getElementById('nav-container');
+        const questionDisplay = document.getElementById('question-display');
+        const questionHint = document.getElementById('question-hint');
+        const stepsContainer = document.getElementById('steps-list');
+        const modal = document.getElementById('completion-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        // --- 1. 導覽與初始化 ---
+        function openCountSelection(mode) {
+            currentMode = mode;
+            countModal.classList.add('show');
+        }
+
+        function closeCountModal() {
+            countModal.classList.remove('show');
+        }
+
+        function backToHome() {
+            modal.classList.remove('show');
+            gameScreen.classList.remove('active');
+            homeScreen.classList.add('active');
+        }
+
+        // --- 2. 題目產生器 ---
+        function startGame(count) {
+            initAudio(); // 初始化音頻內容以解鎖音效限制
+            totalQuestions = count;
+            closeCountModal();
+            
+            generatedQuestions = [];
+            for (let i = 0; i < count; i++) {
+                let type = currentMode;
+                if (currentMode === 'mixed') {
+                    const r = Math.random();
+                    if (r < 0.33) type = 'amplification';
+                    else if (r < 0.66) type = 'simplification';
+                    else type = 'visual';
+                }
+                
+                if (type === 'amplification') generatedQuestions.push(generateAmplificationQuestion(i + 1));
+                else if (type === 'simplification') generatedQuestions.push(generateSimplificationQuestion(i + 1));
+                else generatedQuestions.push(generateVisualQuestion(i + 1));
+            }
+
+            homeScreen.classList.remove('active');
+            gameScreen.classList.add('active');
+            
+            renderNav();
+            loadQuestion(0);
+        }
+
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        const randFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        
+        // 取得三個混淆選項
+        const getOptions = (correctVal) => {
+            let opts = new Set([correctVal]);
+            while(opts.size < 3) opts.add(correctVal + rand(-2, 2));
+            let arr = Array.from(opts).filter(n => n > 0).sort((x,y) => x-y);
+            if (arr.length < 3) arr.push(correctVal + 5); 
+            return arr;
+        };
+
+        // 產生長條圖 SVG
+        function renderFractionSvg(n, d, isUnknown = false) {
+            let rects = '';
+            const width = 180; // 能被多數分母整除的寬度
+            const height = 40;
+            const sliceWidth = width / d;
+            
+            for (let i = 0; i < d; i++) {
+                const isFill = i < n;
+                const fill = isUnknown && isFill ? 'url(#stripePattern)' : (isFill ? '#4ade80' : '#f3f4f6');
+                rects += `<rect x="${i * sliceWidth}" y="0" width="${sliceWidth}" height="${height}" fill="${fill}" stroke="#374151" stroke-width="2"/>`;
+            }
+            
+            return `
+                <div class="flex flex-col items-center gap-1 mb-2">
+                    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="rounded shadow-sm bg-white">
+                        ${rects}
+                    </svg>
+                    <div class="math text-xl mt-1">
+                        <span class="fraction"><span>${isUnknown ? '<span class="text-blue-500">?</span>' : n}</span><span>${d}</span></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // [圖解] 題目產生器
+        function generateVisualQuestion(id) {
+            // 精選常見且好畫的等值分數圖形配對
+            const pairs = [
+                { type: 'amp', from: [1, 2], to: [2, 4], k: 2 },
+                { type: 'amp', from: [1, 3], to: [2, 6], k: 2 },
+                { type: 'amp', from: [1, 3], to: [3, 9], k: 3 },
+                { type: 'amp', from: [1, 4], to: [2, 8], k: 2 },
+                { type: 'amp', from: [2, 3], to: [4, 6], k: 2 },
+                { type: 'simp', from: [2, 4], to: [1, 2], k: 2 },
+                { type: 'simp', from: [3, 9], to: [1, 3], k: 3 },
+                { type: 'simp', from: [2, 6], to: [1, 3], k: 2 },
+                { type: 'simp', from: [4, 8], to: [1, 2], k: 4 }
+            ];
+            
+            const pair = randFrom(pairs);
+            const [fn, fd] = pair.from;
+            const [tn, td] = pair.to;
+            const k = pair.k;
+
+            if (pair.type === 'amp') {
+                return {
+                    id: id, type: 'visual', title: `第 ${id} 題`,
+                    displayHtml: `
+                        <div class="flex flex-col items-center gap-2 py-2">
+                            ${renderFractionSvg(fn, fd, false)}
+                            <span class="text-2xl font-bold text-gray-500">等值變成 ↓</span>
+                            ${renderFractionSvg(tn, td, true)}
+                        </div>
+                    `,
+                    hint: "看看下面的圖，每1塊被切成了更多塊，想像是乘以幾倍？",
+                    steps: [
+                        {
+                            instruction: "步驟 1：觀察全部切了幾塊",
+                            detail: `上面的圖切成 ${fd} 份，下面的圖切成 ${td} 份。<br>請問切的份數是 <mark>乘以</mark> 多少？`,
+                            equationTemplate: `<div class="math">${fd} <span>×</span> <div class="slot" data-ans="${k}"></div> <span>=</span> <span>${td}</span></div>`,
+                            options: getOptions(k), answer: [k]
+                        },
+                        {
+                            instruction: "步驟 2：觀察塗色的塊數",
+                            detail: `因為每1大塊都被切成了 ${k} 小塊，所以原本塗色的份數也要 <mark>乘以 ${k}</mark>。`,
+                            equationTemplate: `<div class="math">${fn} <span>×</span> <span>${k}</span> <span>=</span> <div class="slot" data-ans="${tn}"></div></div>`,
+                            options: getOptions(tn), answer: [tn]
+                        },
+                        {
+                            instruction: "步驟 3：完成等值分數",
+                            detail: "填寫正確的分子，等值分數的塗色總面積是一樣大的喔！",
+                            equationTemplate: `
+                                <div class="math">
+                                    <span class="fraction"><span>${fn}</span><span>${fd}</span></span>
+                                    <span>=</span>
+                                    <span class="fraction"><div class="slot" data-ans="${tn}"></div><span>${td}</span></span>
+                                </div>
+                            `,
+                            options: getOptions(tn), answer: [tn]
+                        }
+                    ]
+                };
+            } else {
+                return {
+                    id: id, type: 'visual', title: `第 ${id} 題`,
+                    displayHtml: `
+                        <div class="flex flex-col items-center gap-2 py-2">
+                            ${renderFractionSvg(fn, fd, false)}
+                            <span class="text-2xl font-bold text-gray-500">合併變成 ↓</span>
+                            ${renderFractionSvg(tn, td, true)}
+                        </div>
+                    `,
+                    hint: "看看下面的圖，線變少了！許多小塊被合併成1大塊，想像是除以幾？",
+                    steps: [
+                        {
+                            instruction: "步驟 1：觀察合併了幾塊",
+                            detail: `上面原本有 ${fd} 份，下面合併只剩 ${td} 份。<br>請問總份數是 <mark>除以</mark> 多少？`,
+                            equationTemplate: `<div class="math">${fd} <span>÷</span> <div class="slot" data-ans="${k}"></div> <span>=</span> <span>${td}</span></div>`,
+                            options: getOptions(k), answer: [k]
+                        },
+                        {
+                            instruction: "步驟 2：觀察塗色塊合併",
+                            detail: `既然每 ${k} 小塊合併成 1 大塊，原本塗色的份數也要 <mark>除以 ${k}</mark>。`,
+                            equationTemplate: `<div class="math">${fn} <span>÷</span> <span>${k}</span> <span>=</span> <div class="slot" data-ans="${tn}"></div></div>`,
+                            options: getOptions(tn), answer: [tn]
+                        },
+                        {
+                            instruction: "步驟 3：完成等值分數",
+                            detail: "填寫正確的分子，觀察約分後的圖形，塗色面積沒有改變！",
+                            equationTemplate: `
+                                <div class="math">
+                                    <span class="fraction"><span>${fn}</span><span>${fd}</span></span>
+                                    <span>=</span>
+                                    <span class="fraction"><div class="slot" data-ans="${tn}"></div><span>${td}</span></span>
+                                </div>
+                            `,
+                            options: getOptions(tn), answer: [tn]
+                        }
+                    ]
+                };
+            }
+        }
+
+        // 一般擴分題
+        function generateAmplificationQuestion(id) {
+            const b = rand(2, 9);
+            const a = rand(1, b - 1); 
+            const k = rand(2, 6); 
+            const targetB = b * k;
+            const targetA = a * k;
+
+            return {
+                id: id, type: 'amplification', title: `第 ${id} 題`,
+                displayHtml: `<div class="math"><span class="fraction"><span>${a}</span><span>${b}</span></span><span>=</span><span class="fraction"><span class="text-blue-600">?</span><span>${targetB}</span></span></div>`,
+                hint: "觀察分母變大了，想像是乘以幾倍？",
+                steps: [
+                    { instruction: "步驟 1：找出倍數", detail: `分母 ${b} 變成了 ${targetB}，是 <mark>乘以</mark> 多少？`, equationTemplate: `<div class="math">${b} <span>×</span> <div class="slot" data-ans="${k}"></div> <span>=</span> <span>${targetB}</span></div>`, options: getOptions(k), answer: [k] },
+                    { instruction: "步驟 2：分子同乘", detail: `分母乘以 ${k}，分子也要 <mark>乘以 ${k}</mark>。`, equationTemplate: `<div class="math">${a} <span>×</span> <span>${k}</span> <span>=</span> <div class="slot" data-ans="${targetA}"></div></div>`, options: getOptions(targetA), answer: [targetA] },
+                    { instruction: "步驟 3：填入答案", detail: "填入最後求得的分子。", equationTemplate: `<div class="math"><span class="fraction"><span>${a}</span><span>${b}</span></span><span>=</span><span class="fraction"><div class="slot" data-ans="${targetA}"></div><span>${targetB}</span></span></div>`, options: getOptions(targetA), answer: [targetA] }
+                ]
+            };
+        }
+
+        // 一般約分題
+        function generateSimplificationQuestion(id) {
+            const b = rand(2, 9);
+            const a = rand(1, b - 1);
+            const k = rand(2, 6); 
+            const startB = b * k;
+            const startA = a * k;
+
+            return {
+                id: id, type: 'simplification', title: `第 ${id} 題`,
+                displayHtml: `<div class="math"><span class="fraction"><span>${startA}</span><span>${startB}</span></span><span>=</span><span class="fraction"><span class="text-blue-600">?</span><span>${b}</span></span></div>`,
+                hint: "分母變小了，想像是除以多少？",
+                steps: [
+                    { instruction: "步驟 1：找出除數", detail: `分母 ${startB} 變成了 ${b}，是 <mark>除以</mark> 多少？`, equationTemplate: `<div class="math">${startB} <span>÷</span> <div class="slot" data-ans="${k}"></div> <span>=</span> <span>${b}</span></div>`, options: getOptions(k), answer: [k] },
+                    { instruction: "步驟 2：分子同除", detail: `分母除以了 ${k}，所以分子 ${startA} 也要 <mark>除以 ${k}</mark>。`, equationTemplate: `<div class="math">${startA} <span>÷</span> <span>${k}</span> <span>=</span> <div class="slot" data-ans="${a}"></div></div>`, options: getOptions(a), answer: [a] },
+                    { instruction: "步驟 3：填入答案", detail: "填寫正確的分子完成約分。", equationTemplate: `<div class="math"><span class="fraction"><span>${startA}</span><span>${startB}</span></span><span>=</span><span class="fraction"><div class="slot" data-ans="${a}"></div><span>${b}</span></span></div>`, options: getOptions(a), answer: [a] }
+                ]
+            };
+        }
+
+        // --- 3. 渲染與互動邏輯 ---
+        function renderNav() {
+            navContainer.innerHTML = '';
+            generatedQuestions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                const isCurrent = index === currentQuestionIndex;
+                
+                btn.className = `flex-none w-10 h-10 rounded-full font-bold text-sm transition-all border-2 flex items-center justify-center 
+                    ${isCurrent 
+                        ? 'bg-green-600 text-white border-green-600 scale-110 shadow-md' 
+                        : 'bg-white text-gray-400 border-gray-200'}`;
+                
+                btn.textContent = index + 1;
+                btn.onclick = () => switchQuestion(index);
+                navContainer.appendChild(btn);
+            });
+            
+            const activeBtn = navContainer.children[currentQuestionIndex];
+            if(activeBtn) activeBtn.scrollIntoView({behavior: 'smooth', inline: 'center'});
+        }
+
+        function switchQuestion(index) {
+            currentQuestionIndex = index;
+            renderNav();
+            loadQuestion(index);
+        }
+
+        function loadQuestion(index) {
+            const q = generatedQuestions[index];
+            currentStepIndex = 0;
+            questionState = {
+                stepsComplete: Array(q.steps.length).fill(false)
+            };
+            
+            currentHint = q.hint; // 更新TTS使用
+            questionDisplay.innerHTML = q.displayHtml;
+            questionHint.textContent = q.hint;
+            questionDisplay.classList.remove('animate-tada');
+            void questionDisplay.offsetWidth; 
+            questionDisplay.classList.add('animate-tada');
+
+            renderSteps();
+        }
+
+        function renderSteps() {
+            stepsContainer.innerHTML = '';
+            const q = generatedQuestions[currentQuestionIndex];
+
+            q.steps.forEach((step, sIdx) => {
+                const isVisible = sIdx <= currentStepIndex;
+                const isCompleted = questionState.stepsComplete[sIdx];
+                const isActive = sIdx === currentStepIndex && !isCompleted;
+
+                const stepEl = document.createElement('div');
+                stepEl.className = `
+                    bg-white rounded-xl shadow-sm border-2 transition-all duration-500 overflow-hidden
+                    ${isVisible ? 'opacity-100 translate-y-0 mb-6' : 'opacity-0 translate-y-4 h-0 mb-0 pointer-events-none'}
+                    ${isCompleted ? 'border-green-200 bg-green-50' : 'border-gray-100'}
+                    ${isActive ? 'border-blue-400 ring-4 ring-blue-50' : ''}
+                `;
+                
+                if (!isVisible) {
+                    stepsContainer.appendChild(stepEl);
+                    return; 
+                }
+
+                const ttsBtnHtml = `<button onclick="speakText('${step.instruction}。${step.detail}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 p-1 rounded-full transition-colors ml-2" title="語音報讀">🔊</button>`;
+
+                const header = document.createElement('div');
+                header.className = "flex justify-between items-center bg-gray-50 px-4 py-3 border-b border-gray-100";
+                header.innerHTML = `
+                    <div class="flex items-center gap-1">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${isCompleted ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}">${sIdx + 1}</span>
+                        <span class="font-bold text-gray-700 ${isCompleted ? 'text-green-700' : ''} ml-1">${step.instruction}</span>
+                        ${ttsBtnHtml}
+                    </div>
+                    ${isCompleted ? '<span class="text-green-600 font-bold text-sm">✔ 完成</span>' : ''}
+                `;
+                stepEl.appendChild(header);
+
+                const content = document.createElement('div');
+                content.className = "p-4 md:p-6";
+                content.innerHTML += `<p class="text-lg text-gray-600 mb-4">${step.detail}</p>`;
+
+                const equationDiv = document.createElement('div');
+                equationDiv.className = "bg-gray-50 rounded-lg p-6 mb-6 flex justify-center items-center flex-wrap gap-4 min-h-[80px]";
+                equationDiv.innerHTML = step.equationTemplate;
+                content.appendChild(equationDiv);
+
+                const slots = equationDiv.querySelectorAll('.slot');
+                slots.forEach((slot, slotIdx) => {
+                    slot.id = `q${currentQuestionIndex}_s${sIdx}_slot${slotIdx}`;
+                    slot.onclick = () => clearSlot(sIdx, slotIdx);
+                    if (isCompleted) {
+                        slot.textContent = step.answer[slotIdx];
+                        slot.classList.add('filled', 'correct');
+                        slot.onclick = null;
+                        slot.style.cursor = 'default';
+                    }
+                });
+
+                if (!isCompleted) {
+                    const controls = document.createElement('div');
+                    controls.className = "mt-4 space-y-4";
+
+                    const optionsDiv = document.createElement('div');
+                    optionsDiv.className = "flex flex-wrap justify-center gap-3";
+                    step.options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = "option-btn hover:bg-blue-50 hover:border-blue-300";
+                        btn.textContent = opt;
+                        btn.onclick = (e) => handleOptionClick(e.target, opt, sIdx);
+                        optionsDiv.appendChild(btn);
+                    });
+                    controls.appendChild(optionsDiv);
+
+                    const checkDiv = document.createElement('div');
+                    checkDiv.className = "flex flex-col items-center gap-2 mt-4";
+                    const msgDiv = document.createElement('div');
+                    msgDiv.id = `msg_${sIdx}`;
+                    msgDiv.className = "h-6 text-sm font-bold text-center";
+                    const checkBtn = document.createElement('button');
+                    checkBtn.className = "w-full md:w-auto px-8 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-md transition-transform active:scale-95";
+                    checkBtn.textContent = "檢查答案";
+                    checkBtn.onclick = () => checkAnswer(sIdx);
+                    
+                    checkDiv.appendChild(msgDiv);
+                    checkDiv.appendChild(checkBtn);
+                    controls.appendChild(checkDiv);
+                    content.appendChild(controls);
+                }
+
+                stepEl.appendChild(content);
+                stepsContainer.appendChild(stepEl);
+            });
+
+            setTimeout(() => {
+                const activeStep = stepsContainer.children[currentStepIndex];
+                if (activeStep) {
+                    activeStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const firstSlot = activeStep.querySelector('.slot:not(.filled)');
+                    if (firstSlot) firstSlot.classList.add('active-target');
+                }
+            }, 100);
+        }
+
+        // --- 互動 Event Handlers ---
+        function handleOptionClick(btn, value, stepIdx) {
+            const stepEl = stepsContainer.children[stepIdx];
+            const slots = stepEl.querySelectorAll('.slot');
+            let targetSlot = Array.from(slots).find(s => !s.classList.contains('filled'));
+
+            if (targetSlot) {
+                targetSlot.textContent = value;
+                targetSlot.classList.add('filled');
+                targetSlot.classList.remove('active-target');
+                btn.disabled = true;
+                btn.dataset.associatedSlot = targetSlot.id;
+                
+                const nextSlot = Array.from(slots).find(s => !s.classList.contains('filled'));
+                if (nextSlot) nextSlot.classList.add('active-target');
+
+                document.getElementById(`msg_${stepIdx}`).textContent = "";
+            }
+        }
+
+        function clearSlot(stepIdx, slotIdx) {
+            const stepEl = stepsContainer.children[stepIdx];
+            const slot = stepEl.querySelectorAll('.slot')[slotIdx];
+            
+            if (slot.classList.contains('filled')) {
+                const val = slot.textContent;
+                const buttons = stepEl.querySelectorAll('.option-btn');
+                buttons.forEach(btn => {
+                    if (btn.disabled && btn.textContent === val && btn.dataset.associatedSlot === slot.id) {
+                        btn.disabled = false;
+                        delete btn.dataset.associatedSlot;
+                    }
+                });
+                slot.textContent = '';
+                slot.className = 'slot active-target';
+                stepEl.querySelectorAll('.slot').forEach((s, i) => {
+                    if(i !== slotIdx) s.classList.remove('active-target');
+                });
+            }
+        }
+
+        function checkAnswer(stepIdx) {
+            const q = generatedQuestions[currentQuestionIndex];
+            const stepData = q.steps[stepIdx];
+            const stepEl = stepsContainer.children[stepIdx];
+            const slots = stepEl.querySelectorAll('.slot');
+            const msgDiv = document.getElementById(`msg_${stepIdx}`);
+
+            let allFilled = true;
+            slots.forEach(s => { if (!s.classList.contains('filled')) allFilled = false; });
+
+            if (!allFilled) {
+                msgDiv.textContent = "請填滿所有空格！";
+                msgDiv.className = "h-6 text-sm font-bold text-center text-orange-500";
+                return;
+            }
+
+            let isCorrect = true;
+            slots.forEach((s, idx) => {
+                if (parseInt(s.textContent) !== stepData.answer[idx]) isCorrect = false;
+            });
+
+            if (isCorrect) {
+                msgDiv.innerHTML = "<span class='text-green-600'>正確！好棒！</span>";
+                slots.forEach(s => s.classList.add('correct'));
+                
+                // 正確音效與小灑花
+                playCorrectSound();
+                confetti({
+                    particleCount: 40,
+                    spread: 50,
+                    origin: { y: 0.8 },
+                    colors: ['#22c55e', '#3b82f6', '#f59e0b']
+                });
+                
+                const checkBtn = stepEl.querySelector('button.bg-green-500');
+                if(checkBtn) checkBtn.classList.add('animate-tada');
+
+                setTimeout(() => {
+                    questionState.stepsComplete[stepIdx] = true;
+                    if (stepIdx < q.steps.length - 1) {
+                        currentStepIndex++;
+                        renderSteps();
+                    } else {
+                        // 如果是視覺題的最後一步，更新左側圖形填色
+                        if (q.type === 'visual') {
+                            const newDisplay = q.displayHtml.replace('<span class="text-blue-500">?</span>', stepData.answer[0]).replace('url(#stripePattern)', '#4ade80');
+                            questionDisplay.innerHTML = newDisplay;
+                        }
+                        showCompletionModal(currentQuestionIndex === generatedQuestions.length - 1);
+                        renderSteps();
+                    }
+                }, 1000); // 稍微延遲讓學生看動畫
+            } else {
+                msgDiv.textContent = "再試試看，數字不太對喔！";
+                msgDiv.className = "h-6 text-sm font-bold text-center text-red-500 animate-pulse";
+            }
+        }
+
+        // --- Modal Control ---
+        function showCompletionModal(isLastQuestion) {
+            modal.classList.add('show');
+            modalContent.classList.add('scale-100');
+            modalContent.classList.remove('scale-95');
+
+            const title = document.getElementById('modal-title');
+            const msg = document.getElementById('modal-msg');
+            const nextBtn = document.getElementById('modal-next-btn');
+            const homeBtn = document.getElementById('modal-home-btn');
+
+            nextBtn.classList.add('hidden');
+            homeBtn.classList.add('hidden');
+
+            if (isLastQuestion) {
+                title.textContent = "太厲害了！全部完成！";
+                msg.textContent = "你已經完成了本次所有的練習題，成為分數大師了！";
+                homeBtn.classList.remove('hidden');
+                
+                // 大灑花特效
+                var duration = 3000;
+                var end = Date.now() + duration;
+                (function frame() {
+                    confetti({
+                        particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ff0000', '#00ff00', '#0000ff']
+                    });
+                    confetti({
+                        particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ff0000', '#00ff00', '#0000ff']
+                    });
+                    if (Date.now() < end) requestAnimationFrame(frame);
+                }());
+            } else {
+                title.textContent = "正確！下一題！";
+                msg.textContent = "做得好，準備好挑戰下一題了嗎？";
+                nextBtn.classList.remove('hidden');
+                
+                // 中型灑花
+                confetti({
+                    particleCount: 150, spread: 70, origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function nextQuestion() {
+            modal.classList.remove('show');
+            if (currentQuestionIndex < generatedQuestions.length - 1) {
+                currentQuestionIndex++;
+                renderNav();
+                loadQuestion(currentQuestionIndex);
+            }
+        }
+    </script>
+</body>
+</html>
