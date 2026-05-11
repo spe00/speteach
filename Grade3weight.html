@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小小秤重專家 - 互動教學版</title>
+    <!-- 引入圓潤字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #FFF9E6;
+            --primary-orange: #FFB347;
+            --primary-green: #77DD77;
+            --primary-blue: #64C7FF;
+            --text-color: #5D5D5D;
+            --card-bg: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', 'Varela Round', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        header { margin-top: 20px; text-align: center; }
+        h1 { color: #FF6B6B; font-size: 1.8rem; margin: 0; text-shadow: 2px 2px 0px #FFF; }
+
+        /* 畫面切換控制 */
+        .screen {
+            display: none;
+            width: 95%;
+            max-width: 550px;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .screen.active { display: flex; }
+
+        /* 卡片與按鈕 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            text-align: center;
+            border: 3px solid #EEE;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .card:active { transform: scale(0.98); }
+        .card:hover { border-color: #FFD93D; }
+
+        .btn {
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            margin: 5px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+            font-family: inherit;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: translateY(2px); box-shadow: none; }
+
+        .btn-start { background-color: #FF6B6B; font-size: 1.3rem; width: 100%; }
+        .btn-free { background-color: var(--primary-blue); }
+        .btn-submit { background-color: #2ECC71; width: 100%; font-size: 1.2rem; margin-top: 10px; }
+        .btn-back { background-color: #B2BEC3; font-size: 0.9rem; padding: 8px 16px; }
+        .btn-hint { background-color: #FF9F43; font-size: 1rem; padding: 8px 16px; }
+        
+        .btn-speech { 
+            background-color: #54a0ff; 
+            font-size: 1.2rem; 
+            padding: 8px 20px; 
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        /* 分數標籤樣式 */
+        .score-badge {
+            background: #FF4757;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            border: 2px solid white;
+        }
+
+        /* 秤面畫布 */
+        .scale-wrapper {
+            position: relative;
+            background: #fff;
+            border-radius: 50%;
+            padding: 5px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            border: 6px solid #f0f0f0;
+            margin-bottom: 15px;
+            margin-top: 10px;
+        }
+
+        canvas {
+            border-radius: 50%;
+            display: block;
+            width: 320px;
+            height: 320px;
+        }
+
+        /* 答題區 */
+        .input-area {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            width: 100%;
+            text-align: center;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .step-box {
+            background-color: #FFF3CD;
+            border: 2px solid #FFEBA7;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.3s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .hint-box {
+            background-color: #E8F5E9;
+            border: 2px solid #C8E6C9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            animation: fadeIn 0.5s;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 10px;
+            font-size: 1.4rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            outline: none;
+            font-family: inherit;
+        }
+        input[type="number"]:focus { border-color: var(--primary-blue); background: #F0F8FF; }
+
+        /* 反饋訊息 */
+        .feedback {
+            margin-top: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-height: 24px;
+        }
+        .correct { color: #27AE60; }
+        .wrong { color: #C0392B; }
+
+        /* 關卡資訊標籤 */
+        .level-badge {
+            background: #6c5ce7;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚖️ 小小秤重專家</h1>
+</header>
+
+<!-- 1. 首頁 -->
+<div id="screen-home" class="screen active">
+    <h3>請選擇模式</h3>
+    
+    <!-- 基礎闖關模式 -->
+    <div class="card" onclick="playClick(); showScreen('basic-menu')">
+        <div style="font-size: 3rem;">🚩</div>
+        <h2>基礎闖關</h2>
+        <p>循序漸進，認識不同刻度的秤</p>
+        <button class="btn btn-start">進入選擇</button>
+    </div>
+
+    <!-- 自由練習模式 -->
+    <div class="card" onclick="playClick(); showScreen('free-select')">
+        <div style="font-size: 3rem;">🎲</div>
+        <h2>自由練習</h2>
+        <p>選擇秤重，隨機出題</p>
+        <button class="btn btn-free">進入練習</button>
+    </div>
+</div>
+
+<!-- 1.1 基礎闖關選單 -->
+<div id="screen-basic-menu" class="screen">
+    <h3>基礎闖關：選擇類型</h3>
+    
+    <div class="card" onclick="playClick(); startBasicMode('read')">
+        <div style="font-size: 2.5rem;">📖</div>
+        <h2>1. 認識刻度</h2>
+        <p>觀察秤面，判斷一小格是多少<br>(可使用提示功能)</p>
+        <button class="btn btn-start" style="background-color: #FF9F43;">開始學習</button>
+    </div>
+
+    <div class="card" onclick="playClick(); startBasicMode('quiz')">
+        <div style="font-size: 2.5rem;">📝</div>
+        <h2>2. 實戰演練 (測驗)</h2>
+        <p>觀察並計算，完成 5 題測驗<br>挑戰成為專家</p>
+        <button class="btn btn-start">開始測驗</button>
+    </div>
+
+    <button class="btn btn-back" onclick="playClick(); showScreen('home')">⬅ 返回首頁</button>
+</div>
+
+<!-- 2. 自由練習：選擇秤 -->
+<div id="screen-free-select" class="screen">
+    <h3>選擇秤的種類</h3>
+    <div class="card" onclick="playClick(); selectFreeScale('3kg')">
+        <span style="font-size: 2.5rem;">🍊</span>
+        <b>3 公斤秤</b> (3kg)<br>
+        <span style="font-size:0.9rem; color:#888;">每小格 10g，每 100g 粗線</span>
+    </div>
+    <div class="card" onclick="playClick(); selectFreeScale('1kg')">
+        <span style="font-size: 2.5rem;">🥬</span>
+        <b>1 公斤秤</b> (1kg)
+    </div>
+    <button class="btn btn-back" onclick="playClick(); showScreen('home')">⬅ 返回首頁</button>
+</div>
+
+<!-- 3. 自由練習：選擇難度 -->
+<div id="screen-free-options" class="screen">
+    <h3>設定練習</h3>
+    <div style="margin-bottom: 15px; width: 100%;">
+        <p><b>難度：</b></p>
+        <div style="display:flex; justify-content:center; gap:10px;">
+            <button class="btn btn-free" onclick="playClick(); state.difficulty='easy'; showScreen('free-count');">
+                🌟 簡單 (有指針提示)
+            </button>
+            <button class="btn btn-start" onclick="playClick(); state.difficulty='challenge'; showScreen('free-count');" style="background-color:#FF6B6B">
+                🔥 挑戰 (需計算刻度)
+            </button>
+        </div>
+    </div>
+    <button class="btn btn-back" onclick="playClick(); showScreen('free-select')">⬅ 返回</button>
+</div>
+
+<!-- 3.1 自由練習：選擇題數 -->
+<div id="screen-free-count" class="screen">
+    <h3>要挑戰幾題？</h3>
+    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+        <button class="btn btn-free" onclick="playClick(); startFreeGame(5)">5 題</button>
+        <button class="btn btn-free" onclick="playClick(); startFreeGame(10)">10 題</button>
+        <button class="btn btn-free" onclick="playClick(); startFreeGame(20)">20 題</button>
+    </div>
+    <button class="btn btn-back" onclick="playClick(); showScreen('free-options')">⬅ 返回</button>
+</div>
+
+<!-- 4. 遊戲主畫面 -->
+<div id="screen-game" class="screen">
+    <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn btn-back" onclick="playClick(); exitGame()">⬅ 退出</button>
+            <div id="live-score" class="score-badge">得分: 0</div>
+        </div>
+        <div style="text-align:right;">
+            <span id="level-info" class="level-badge">關卡 1</span>
+            <div id="game-progress" style="font-weight:bold; color:#888; font-size:0.9rem;">1 / 5</div>
+        </div>
+    </div>
+    
+    <div class="scale-wrapper">
+        <canvas id="scaleCanvas" width="640" height="640"></canvas>
+    </div>
+
+    <div class="input-area">
+        
+        <!-- A. 認識刻度模式 (判讀刻度) -->
+        <div id="mode-read" style="display:none; width: 100%;">
+            <p style="font-weight: bold; font-size: 1.2rem; margin: 0 0 10px 0;">觀察秤面，一小格是幾公克？</p>
+            
+            <!-- 答題區 -->
+            <div class="input-group">
+                <input type="number" id="inp-read-small" placeholder="?">
+                <span>g</span>
+            </div>
+            <button id="btn-check-read" class="btn btn-free" onclick="playClick(); checkReadModeAnswer()">確認答案</button>
+
+            <!-- 提示區 -->
+            <div style="margin-top: 15px; width: 100%;">
+                <button id="btn-show-hint" class="btn btn-hint" onclick="playClick(); showHint()">💡 我需要提示</button>
+            </div>
+
+            <div id="hint-area" style="display:none; width: 100%;">
+                <div id="hint-text" class="hint-box"></div>
+                <div style="margin-top: 5px;">
+                    <button id="btn-speak" class="btn btn-speech" onclick="playClick(); speakHint()" title="唸出提示">
+                        🎤 朗讀提示
+                    </button>
+                </div>
+            </div>
+
+            <div id="feedback-read" class="feedback"></div>
+            <button id="btn-read-next" class="btn btn-submit" onclick="playClick(); nextLevel()" style="display:none; margin-top:15px;">下一關 ➡</button>
+        </div>
+
+        <!-- B. 實戰演練模式 (測驗) -->
+        <div id="mode-quiz" style="display:none; width: 100%;">
+            <!-- 步驟 1：計算小格 -->
+            <div id="step-calc" class="step-box" style="display:none;">
+                <p><b>步驟 1：</b>觀察秤面<br>請問 <b>1 小格</b> 代表幾公克？</p>
+                <div class="input-group">
+                    <input type="number" id="inp-small-div" placeholder="?">
+                    <span>g</span>
+                </div>
+                <button class="btn btn-free" onclick="playClick(); checkSmallDiv()">確認</button>
+            </div>
+
+            <!-- 步驟 2：輸入答案 -->
+            <div id="step-answer" style="display:none;">
+                <div id="prompt-text" style="font-weight:bold; font-size:1.2rem; margin-bottom:5px;">指針指的是多少？</div>
+                
+                <div class="input-group" id="grp-3kg">
+                    <input type="number" id="inp-kg" placeholder="0"> <label>公斤</label>
+                    <input type="number" id="inp-g-3kg" placeholder="0"> <label>公克</label>
+                </div>
+
+                <div class="input-group" id="grp-1kg" style="display:none;">
+                    <input type="number" id="inp-g-1kg" placeholder="0"> <label>公克</label>
+                </div>
+
+                <button id="btn-submit" class="btn btn-submit" onclick="playClick(); checkAnswer()">提交答案</button>
+                <button id="btn-next" class="btn btn-free" style="width:100%; display:none; font-size:1.2rem;" onclick="playClick(); nextLevel()">下一題 ➡</button>
+            </div>
+
+            <div id="feedback" class="feedback"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 5. 結算畫面 -->
+<div id="screen-result" class="screen">
+    <h2>🎉 挑戰完成！</h2>
+    <div class="card" style="cursor: default;">
+        <p>你的得分</p>
+        <h1 id="final-score" style="font-size:3.5rem; color:#FF6B6B;">100</h1>
+        <p id="final-comment">太棒了！</p>
+    </div>
+    <button class="btn btn-start" onclick="playClick(); showScreen('home')">回到首頁</button>
+</div>
+
+<script>
+    /* ---------------- 遊戲配置與狀態 ---------------- */
+    
+    // 基礎闖關設定
+    const BASIC_LEVELS = [
+        { max: 3000, major: 1000, minor: 10, type: '3kg', desc: '3公斤/10g', hint: '這是一個 3 公斤的秤。\n數字 1000, 2000 代表 1 公斤、2 公斤。\n從 0 到 100 公克之間有 10 格。\n算算看，一小格代表多少？' },
+        { max: 3000, major: 1000, minor: 20, type: '3kg', desc: '3公斤/20g', hint: '這也是 3 公斤的秤。\n但是格子比較大喔！\n從 0 到 100 公克之間只有 5 格。\n用 100 除以 5 算算看。' },
+        { max: 3000, major: 500,  minor: 10, type: '3kg', desc: '3公斤/500g標示', hint: '這個秤上面寫著 500、1000。\n它最大可以秤到 3000 公克。\n0 到 50 公克中間有 5 格。\n每一小格代表 10 公克。' },
+        { max: 1000, major: 50,   minor: 10, type: '1kg', desc: '1公斤/50g標示', hint: '這是一個 1 公斤的秤。\n數字每 50 公克出現一次。\n每一小格代表 10 公克。' },
+        { max: 1000, major: 100,  minor: 10, type: '1kg', desc: '1公斤/100g標示', hint: '這是一個 1 公斤的秤。\n數字每 100 公克出現一次。\n每一小格代表 10 公克。' }
+    ];
+
+    const state = {
+        mode: 'free',       
+        levels: [],         
+        currentLevelIdx: 0,
+        score: 0,
+        difficulty: 'easy', 
+        currentWeight: 0,   
+        currentHintText: ''
+    };
+
+    const canvas = document.getElementById('scaleCanvas');
+    const ctx = canvas.getContext('2d');
+    const feedbackEl = document.getElementById('feedback');
+    const feedbackReadEl = document.getElementById('feedback-read');
+
+    /* ---------------- 導航與初始化 ---------------- */
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-' + id).classList.add('active');
+    }
+
+    function updateScoreDisplay() {
+        document.getElementById('live-score').innerText = `得分: ${Math.round(state.score)}`;
+    }
+
+    // 啟動基礎闖關 (分流：read 或 quiz)
+    function startBasicMode(subMode) {
+        state.mode = 'basic_' + subMode;
+        state.levels = [...BASIC_LEVELS]; 
+        
+        state.difficulty = (subMode === 'quiz') ? 'challenge' : 'easy';
+        
+        state.currentLevelIdx = 0;
+        state.score = 0;
+        updateScoreDisplay(); // 重置分數顯示
+        showScreen('game');
+        loadLevel();
+    }
+
+    function selectFreeScale(type) {
+        state.freeScaleType = type;
+        showScreen('free-options');
+    }
+
+    function startFreeGame(count) {
+        state.mode = 'free';
+        state.levels = [];
+        
+        const is3kg = state.freeScaleType === '3kg';
+        const max = is3kg ? 3000 : 1000;
+        const major = is3kg ? 1000 : 100;
+        const minor = 10; 
+
+        for(let i=0; i<count; i++) {
+            state.levels.push({
+                max: max, major: major, minor: minor, 
+                type: state.freeScaleType, desc: '自由練習'
+            });
+        }
+        state.currentLevelIdx = 0;
+        state.score = 0;
+        updateScoreDisplay(); // 重置分數顯示
+        showScreen('game');
+        loadLevel();
+    }
+
+    function exitGame() {
+        if(confirm('確定要退出目前的挑戰嗎？進度將會遺失。')) {
+            showScreen('home');
+        }
+    }
+
+    /* ---------------- 遊戲核心邏輯 ---------------- */
+
+    function loadLevel() {
+        const level = state.levels[state.currentLevelIdx];
+        
+        // 更新標題
+        let title = "自由練習";
+        if (state.mode === 'basic_read') title = "認識刻度";
+        if (state.mode === 'basic_quiz') title = "實戰演練";
+        
+        document.getElementById('level-info').innerText = `${title} ${state.currentLevelIdx + 1}`;
+        document.getElementById('level-info').style.background = state.mode.includes('basic') ? '#6c5ce7' : '#0984e3';
+        document.getElementById('game-progress').innerText = `${state.currentLevelIdx + 1} / ${state.levels.length}`;
+        
+        // 重置 UI
+        feedbackEl.innerText = '';
+        feedbackReadEl.innerText = '';
+        document.getElementById('inp-small-div').value = '';
+        document.getElementById('inp-read-small').value = '';
+        document.getElementById('inp-kg').value = '';
+        document.getElementById('inp-g-3kg').value = '';
+        document.getElementById('inp-g-1kg').value = '';
+
+        // 隱藏所有模式區塊
+        document.getElementById('mode-read').style.display = 'none';
+        document.getElementById('mode-quiz').style.display = 'none';
+
+        // 生成題目 (教學模式指針歸零，測驗模式隨機)
+        if (state.mode === 'basic_read') {
+            state.currentWeight = 0; // 教學時指針歸零，避免干擾
+        } else {
+            generateWeight(level);
+        }
+
+        // 根據模式顯示對應介面
+        if (state.mode === 'basic_read') {
+            // A. 認識刻度模式
+            document.getElementById('mode-read').style.display = 'block';
+            
+            // 重置提示區
+            document.getElementById('hint-area').style.display = 'none';
+            document.getElementById('btn-show-hint').style.display = 'inline-block';
+            document.getElementById('btn-read-next').style.display = 'none';
+            document.getElementById('btn-check-read').style.display = 'inline-block';
+            
+            // 繪圖：只畫刻度盤，指針歸零
+            drawScale(level, 0, false);
+
+        } else {
+            // B. 測驗/自由模式
+            document.getElementById('mode-quiz').style.display = 'block';
+            document.getElementById('grp-3kg').style.display = level.type === '3kg' ? 'flex' : 'none';
+            document.getElementById('grp-1kg').style.display = level.type === '1kg' ? 'flex' : 'none';
+            document.getElementById('btn-submit').style.display = 'inline-block';
+            document.getElementById('btn-next').style.display = 'none';
+
+            if (state.difficulty === 'challenge') {
+                document.getElementById('step-calc').style.display = 'block';
+                document.getElementById('step-answer').style.display = 'none';
+                drawScale(level, state.currentWeight, false); // 不顯示提示
+            } else {
+                document.getElementById('step-calc').style.display = 'none';
+                document.getElementById('step-answer').style.display = 'block';
+                drawScale(level, state.currentWeight, true); // 顯示提示
+            }
+        }
+    }
+
+    function generateWeight(level) {
+        const steps = level.max / level.minor;
+        let randStep = Math.floor(Math.random() * steps) + 1;
+        state.currentWeight = randStep * level.minor;
+        if (state.currentWeight >= level.max) state.currentWeight = 0;
+    }
+
+    function nextLevel() {
+        state.currentLevelIdx++;
+        if (state.currentLevelIdx >= state.levels.length) {
+            endGame();
+        } else {
+            loadLevel();
+        }
+    }
+
+    /* ---------------- A. 認識刻度模式功能 ---------------- */
+
+    function checkReadModeAnswer() {
+        const level = state.levels[state.currentLevelIdx];
+        const val = parseInt(document.getElementById('inp-read-small').value);
+        
+        if (val === level.minor) {
+            playSound('correct');
+            // 答對加分！
+            state.score += (100 / state.levels.length);
+            updateScoreDisplay();
+            
+            feedbackReadEl.innerHTML = '<span class="correct">✅ 答對了！</span>';
+            document.getElementById('btn-check-read').style.display = 'none';
+            document.getElementById('btn-read-next').style.display = 'inline-block';
+        } else {
+            playSound('wrong');
+            feedbackReadEl.innerHTML = '<span class="wrong">❌ 再算算看，或者點擊下方按鈕看提示。</span>';
+        }
+    }
+
+    function showHint() {
+        const level = state.levels[state.currentLevelIdx];
+        const hintDiv = document.getElementById('hint-text');
+        
+        state.currentHintText = level.hint || "請仔細觀察刻度與數字的關係。";
+        hintDiv.innerHTML = state.currentHintText.replace(/\n/g, "<br>");
+        
+        document.getElementById('hint-area').style.display = 'block';
+        document.getElementById('btn-show-hint').style.display = 'none';
+        
+        playClick();
+    }
+
+    function speakHint() {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(state.currentHintText);
+            utterance.lang = 'zh-TW';
+            utterance.rate = 0.85; 
+            utterance.pitch = 1.1; 
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("您的瀏覽器不支援語音功能。");
+        }
+    }
+
+    /* ---------------- B. 測驗模式驗證邏輯 ---------------- */
+
+    function checkSmallDiv() {
+        const level = state.levels[state.currentLevelIdx];
+        const val = parseInt(document.getElementById('inp-small-div').value);
+        
+        if (val === level.minor) {
+            playSound('correct');
+            feedbackEl.innerHTML = '<span class="correct">✅ 答對了！</span>';
+            setTimeout(() => {
+                feedbackEl.innerText = '';
+                document.getElementById('step-calc').style.display = 'none';
+                document.getElementById('step-answer').style.display = 'block';
+                if(level.type === '3kg') document.getElementById('inp-kg').focus();
+                else document.getElementById('inp-g-1kg').focus();
+            }, 800);
+        } else {
+            playSound('wrong');
+            const bigGap = (level.major === 50 || level.major === 100) ? level.major : 100;
+            const count = bigGap / level.minor;
+            feedbackEl.innerHTML = `<span class="wrong">❌ 不對喔。提示：0 到 ${bigGap}g 之間有 ${count} 格。</span>`;
+        }
+    }
+
+    function checkAnswer() {
+        const level = state.levels[state.currentLevelIdx];
+        let userTotal = 0;
+        
+        if (level.type === '3kg') {
+            const kg = parseInt(document.getElementById('inp-kg').value) || 0;
+            const g = parseInt(document.getElementById('inp-g-3kg').value) || 0;
+            userTotal = kg * 1000 + g;
+        } else {
+            userTotal = parseInt(document.getElementById('inp-g-1kg').value) || 0;
+        }
+
+        let isCorrect = false;
+        if (state.currentWeight === 0) {
+            if (userTotal === 0 || userTotal === level.max) isCorrect = true;
+        } else {
+            if (userTotal === state.currentWeight) isCorrect = true;
+        }
+
+        if (isCorrect) {
+            playSound('correct');
+            // 答對加分！
+            state.score += (100 / state.levels.length);
+            updateScoreDisplay();
+
+            feedbackEl.innerHTML = `<span class="correct">🎉 答對了！答案是 ${formatWeight(state.currentWeight || level.max, level.type)}</span>`;
+            document.getElementById('btn-submit').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'inline-block';
+            document.getElementById('btn-next').focus();
+        } else {
+            playSound('wrong');
+            feedbackEl.innerHTML = '<span class="wrong">❌ 答案不對，再仔細看看指針！</span>';
+        }
+    }
+
+    function endGame() {
+        showScreen('result');
+        document.getElementById('final-score').innerText = Math.round(state.score);
+        
+        let comment = "完成挑戰！";
+        if (state.mode === 'basic_read') comment = "學習完成！你已經認識所有的秤了！";
+        else if (Math.round(state.score) === 100) comment = "太棒了！你是秤重專家！";
+        else comment = "不錯喔！繼續加油！";
+        
+        document.getElementById('final-comment').innerText = comment;
+        playSound('win');
+    }
+
+    /* ---------------- 繪圖引擎 ---------------- */
+
+    function drawScale(config, weightVal, showHint) {
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const radius = 240;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. 畫圓盤
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 20, 0, Math.PI * 2);
+        ctx.fillStyle = config.type === '3kg' ? '#FFF8E1' : '#E8F5E9';
+        ctx.fill();
+        ctx.strokeStyle = config.type === '3kg' ? '#FFB347' : '#77DD77';
+        ctx.lineWidth = 15;
+        ctx.stroke();
+
+        // 2. 畫刻度
+        const totalTicks = config.max / config.minor;
+        
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineCap = 'butt';
+
+        const isFree3kg = (state.mode === 'free' && config.type === '3kg');
+
+        for (let i = 0; i < totalTicks; i++) {
+            const currentG = i * config.minor;
+            const angle = (currentG / config.max) * (Math.PI * 2) - Math.PI / 2;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            // 定義線條等級
+            let styleLevel = 0;
+
+            if (isFree3kg) {
+                if (currentG % 1000 === 0) styleLevel = 3; 
+                else if (currentG % 500 === 0) styleLevel = 2;
+                else if (currentG % 100 === 0) styleLevel = 2; 
+                else if (currentG % 50 === 0) styleLevel = 1;  
+            } else if (config.max === 3000) {
+                if (currentG % 1000 === 0) styleLevel = 3;
+                else if (currentG % 500 === 0) styleLevel = 2;
+                else if (currentG % 100 === 0) styleLevel = 1;
+            } else {
+                if (currentG % 100 === 0) styleLevel = 3;
+                else if (currentG % 50 === 0) styleLevel = 2;
+            }
+
+            // 設定外觀
+            let len = 12;
+            let width = 1.5;
+            let color = '#BBB';
+
+            if (styleLevel === 3) { // 最大刻度
+                len = 35; width = 5; color = '#333';
+            } else if (styleLevel === 2) { // 次大刻度
+                len = 28; width = 3; color = '#555';
+            } else if (styleLevel === 1) { // 中刻度
+                len = 20; width = 2; color = '#888';
+            }
+
+            // 畫線
+            ctx.beginPath();
+            ctx.moveTo(cx + radius * cos, cy + radius * sin);
+            ctx.lineTo(cx + (radius - len) * cos, cy + (radius - len) * sin);
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.stroke();
+
+            // 3. 畫數字 (標示)
+            if (currentG % config.major === 0) {
+                const textR = radius - 65;
+                ctx.save();
+                ctx.translate(cx + textR * cos, cy + textR * sin);
+                ctx.font = "bold 36px 'Varela Round'";
+                ctx.fillStyle = "#333";
+                
+                let numText = currentG;
+                if (config.type === '3kg' && config.major === 1000) {
+                    numText = currentG / 1000;
+                }
+                
+                ctx.fillText(numText, 0, 0);
+
+                if (currentG === 0) {
+                    ctx.font = "20px Arial";
+                    ctx.fillStyle = "#888";
+                    let unit = "g";
+                    if (config.major === 1000) unit = "kg";
+                    ctx.fillText(unit, 0, 30);
+                }
+                ctx.restore();
+            }
+        }
+
+        // 4. 畫指針
+        const targetAngle = (weightVal / config.max) * (Math.PI * 2) - Math.PI / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(targetAngle + Math.PI / 2);
+
+        // 陰影
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetY = 3;
+
+        // 本體
+        ctx.beginPath();
+        ctx.moveTo(-7, 20);
+        ctx.lineTo(7, 20);
+        ctx.lineTo(0, -radius - 5); 
+        ctx.fillStyle = "#FF4757";
+        ctx.fill();
+
+        // 圓釘
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fillStyle = "#C0392B";
+        ctx.fill();
+
+        // 答案提示 (僅在需要時顯示)
+        if (showHint) {
+            ctx.save();
+            ctx.translate(0, -radius - 50);
+            ctx.rotate(-(targetAngle + Math.PI / 2)); 
+            
+            ctx.fillStyle = "rgba(255,255,255,0.95)";
+            ctx.strokeStyle = "#FF4757";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-70, -30, 140, 60, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#FF4757";
+            ctx.font = "bold 28px 'Varela Round'";
+            let hintT = formatWeight(weightVal || config.max, config.type);
+            ctx.fillText(hintT, 0, 8);
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    /* ---------------- 輔助函數與音效 ---------------- */
+
+    function formatWeight(g, type) {
+        if (type === '3kg') {
+            const kg = Math.floor(g / 1000);
+            const rem = g % 1000;
+            if (kg > 0 && rem > 0) return `${kg}kg ${rem}g`;
+            if (kg > 0) return `${kg}kg`;
+            return `${rem}g`;
+        }
+        return `${g}g`;
+    }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playClick() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        const now = audioCtx.currentTime;
+
+        if (type === 'correct') {
+            osc.frequency.setValueAtTime(659, now); 
+            osc.frequency.setValueAtTime(1046, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start();
+            osc.stop(now + 0.4);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start();
+            osc.stop(now + 0.3);
+        } else if (type === 'win') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523, now); 
+            osc.frequency.setValueAtTime(659, now + 0.1); 
+            osc.frequency.setValueAtTime(783, now + 0.2); 
+            osc.frequency.setValueAtTime(1046, now + 0.3); 
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.6);
+            osc.start();
+            osc.stop(now + 0.6);
+        }
+    }
+
+</script>
+</body>
+</html>
