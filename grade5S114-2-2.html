@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>防止生鏽與保存食物・互動挑戰</title>
+  
+  <!-- 引入 Tailwind CSS (負責畫面排版與美化) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入 React 與 ReactDOM (負責核心互動邏輯) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- 引入 Babel (讓瀏覽器能看得懂 JSX 語法) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans selection:bg-blue-200 min-h-screen">
+  
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- 圖示元件定義區 (取代外部依賴，確保單檔可直接執行) ---
+    const IconVolume2 = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>;
+    const IconPlayCircle = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>;
+    const IconCheckCircle2 = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>;
+    const IconXCircle = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>;
+    const IconArrowRight = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+    const IconUser = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+    const IconTrophy = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7c0 6 3 10 6 10s6-4 6-10V2Z"/></svg>;
+    const IconShieldCheck = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>;
+    const IconHome = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+    const IconTimer = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></svg>;
+
+    // --- 資料定義區 (15個模組：每個包含一頁講解與一題測驗) ---
+    const MODULES = [
+      {
+        lessonTitle: "第一課：鐵鏽是什麼？",
+        lessonContent: [
+          "鐵製品放在自然環境下放久了，表面會發生變化。",
+          "表面會產生褐色或深咖啡色、摸起來粗粗的且容易碎裂的物質，這就是「鐵鏽」。"
+        ],
+        question: "鐵製品生鏽時，表面通常會出現什麼顏色的物質？",
+        options: ["藍色或紫色的粉末", "褐色或深咖啡色易碎物質", "綠色的光滑薄膜"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第二課：生鏽的條件（水分）",
+        lessonContent: [
+          "鐵在接觸到「水分」和「空氣」的時候，特別容易生鏽。",
+          "所以，放在戶外淋雨的鐵欄杆，會比放在室內乾燥地方的鐵製品更容易生鏽。"
+        ],
+        question: "為什麼戶外沒有雨遮的腳踏車，比停在室內的更容易生鏽？",
+        options: ["因為戶外的光線比較亮", "因為戶外容易接觸到雨水和空氣", "因為戶外有人會經常去騎它"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第三課：生鏽的條件（酸性物質）",
+        lessonContent: [
+          "除了水分和空氣，接觸到「酸性水溶液」也會大大加速鐵製品的生鏽。",
+          "如果在鐵絲上滴幾滴食醋或是檸檬汁，它生鏽的速度會變快喔！"
+        ],
+        question: "如果把鐵製的迴紋針分別泡在下列哪一種液體中，生鏽的速度可能會最快？",
+        options: ["酸性的食醋", "一般自來水", "沙拉油"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第四課：實驗設計的變因",
+        lessonContent: [
+          "在科學實驗中，我們把會影響實驗結果的條件稱為「變因」。",
+          "我們想要測試的那一個唯一改變的條件，稱為「操作變因」；其他必須保持完全一樣的條件，稱為「控制變因」。"
+        ],
+        question: "如果我們想測試「水分」會不會影響鋼棉生鏽，在這個實驗中「水分」稱為什麼？",
+        options: ["控制變因", "操作變因", "不變變因"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第五課：防鏽的主要原理",
+        lessonContent: [
+          "既然知道水和空氣會讓鐵生鏽，那要防止生鏽就很簡單了！",
+          "防鏽最主要的原理，就是想辦法「隔絕空氣」和「隔絕水分」。"
+        ],
+        question: "要防止鐵製品生鏽，最核心的原理是什麼？",
+        options: ["讓鐵製品經常照太陽", "放在通風的室外", "隔絕水分和空氣"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第六課：生活中的防鏽方法",
+        lessonContent: [
+          "為了隔絕空氣和水，我們可以幫鐵製品「穿衣服」。",
+          "常見的方法有：在鐵門塗上油漆、把曬衣架包覆一層塑膠皮，或是幫腳踏車鐵鍊塗抹潤滑油。"
+        ],
+        question: "下列哪一種做法「不能」防止鐵製品生鏽？",
+        options: ["在腳踏車的鐵鍊上塗抹潤滑油", "在戶外的鐵製欄杆上塗油漆", "經常用酸性的果汁清洗鐵鍋"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第七課：電鍍與合金",
+        lessonContent: [
+          "科技進步，現在也可以用「電鍍」的方法在鐵表面鍍上其他金屬來防鏽。",
+          "或者把鐵加入其他金屬做成合金，例如廚房常用的「不鏽鋼」鍋具，就不容易生鏽了。"
+        ],
+        question: "許多食品罐頭的表面閃閃發亮且不容易生鏽，通常是運用了哪一種防鏽方法？",
+        options: ["塗抹厚厚的潤滑油", "表面電鍍", "包覆一層厚塑膠皮"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第八課：食物腐敗了",
+        lessonContent: [
+          "和鐵製品會生鏽一樣，食物如果沒有妥善保存，也會發生變化。",
+          "食物放久了，外觀會改變、散發出臭味，甚至表面長出毛毛的東西，這就是食物腐敗了。"
+        ],
+        question: "食物腐敗時，通常會觀察到什麼現象？",
+        options: ["聞起來變得更香甜", "產生臭味並可能長出黴菌", "顏色變得比原來更鮮豔"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第九課：觀察微小的黴菌",
+        lessonContent: [
+          "腐敗食物上經常長出不同顏色、細絲狀的「黴菌」。",
+          "黴菌是一種非常微小的微生物，通常需要使用「放大鏡」或「顯微鏡」才能看清楚它們的構造。"
+        ],
+        question: "想要清楚觀察吐司上面微小黴菌的構造，最好使用什麼工具？",
+        options: ["望遠鏡", "顯微鏡", "近視眼鏡"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第十課：黴菌喜歡的環境",
+        lessonContent: [
+          "要防止食物壞掉，就要知道黴菌喜歡什麼環境。",
+          "黴菌最喜歡生長在：「溫暖」、「潮溼（水分多）」而且有「空氣」的地方。"
+        ],
+        question: "同一包吐司，放在哪一種環境下最容易長出黴菌？",
+        options: ["溫暖又潮溼的廚房裡", "寒冷又乾燥的冰箱裡", "抽乾空氣的真空包裝袋裡"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第十一課：保存食物（減少水分）",
+        lessonContent: [
+          "只要破壞黴菌喜歡的環境，就能保存食物。",
+          "把食物裡的水分去除，微生物就不容易生長。例如：將新鮮的魚晒成魚乾，或是把柿子做成柿餅。"
+        ],
+        question: "將新鮮的魚晒成「魚乾」，主要是減少了哪一項會讓微生物生長的條件？",
+        options: ["減少水分", "減少空氣", "降低溫度"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第十二課：保存食物（保持低溫）",
+        lessonContent: [
+          "低溫可以有效抑制微生物的生長與活動。",
+          "所以我們會把容易壞掉的蔬菜、肉類放進冰箱裡「冷藏」或「冷凍」，延長保存期限。"
+        ],
+        question: "為什麼媽媽買回來的鮮奶和新鮮肉品，要馬上放進冰箱保存？",
+        options: ["為了讓鮮奶變好喝", "利用低溫抑制微生物生長", "為了增加食物裡的水分"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第十三課：保存食物（醃漬與真空）",
+        lessonContent: [
+          "「真空包裝」可以抽走空氣，讓微生物無法生存。",
+          "而「醃漬」是加入大量的糖或鹽巴，讓食物脫水，也能達到抑制微生物生長的效果喔！"
+        ],
+        question: "利用大量的糖或鹽巴來處理食物（例如：製作泡菜、蜜餞），稱為什麼保存方法？",
+        options: ["真空包裝", "醃漬", "低溫保存"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第十四課：現代保鮮包裝小物",
+        lessonContent: [
+          "現代的食品包裝裡常會放入一些小包裝來保鮮。",
+          "「乾燥劑」用來吸收水分保持乾燥；「脫氧劑」則是用來吸收氧氣，防止食物變質。"
+        ],
+        question: "買來的海苔包裝裡面有一小包「乾燥劑」，它的主要功用是什麼？",
+        options: ["產生大量空氣讓包裝鼓鼓的", "讓海苔吃起來比較鹹", "吸收水分，防止食物受潮長黴"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第十五課：生活中的好微生物",
+        lessonContent: [
+          "其實，微生物並不全都是會讓食物壞掉的壞蛋喔！",
+          "生活中也有很多好用的微生物，例如：「酵母菌」可以讓麵包蓬鬆、「乳酸菌」可以製作優格、「米麴菌」可以做味噌。"
+        ],
+        question: "下列哪一種食物，是利用有益的微生物（乳酸菌）幫忙製作出來的？",
+        options: ["優格", "水果罐頭", "冷凍水餃"],
+        correctAnswer: 0
+      }
+    ];
+
+    // --- 紙吹雪灑花動畫組件 ---
+    const Confetti = () => {
+      const pieces = Array.from({ length: 60 }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 1.5}s`,
+        animationDuration: `${2 + Math.random() * 2}s`,
+        color: ['#ffcfdf', '#fefdca', '#e0f9b5', '#a5dee5', '#ff9999', '#fcd34d'][Math.floor(Math.random() * 6)],
+        shape: Math.random() > 0.5 ? 'circle' : 'square',
+        size: `${8 + Math.random() * 10}px`
+      }));
+
+      return (
+        <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+          {pieces.map(p => (
+            <div
+              key={p.id}
+              className="absolute top-[-20px] opacity-90"
+              style={{
+                left: p.left,
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                borderRadius: p.shape === 'circle' ? '50%' : '2px',
+                animation: `fall ${p.animationDuration} linear ${p.animationDelay} forwards`
+              }}
+            />
+          ))}
+          <style>{`
+            @keyframes fall {
+              0% { transform: translateY(-10vh) rotate(0deg) scale(1); opacity: 1; }
+              100% { transform: translateY(110vh) rotate(720deg) scale(0.8); opacity: 0; }
+            }
+          `}</style>
+        </div>
+      );
+    };
+
+    // --- 語音輔助函數 ---
+    const speakText = (text) => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      }
+    };
+
+    const stopSpeech = () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+
+    // --- 共用語音文字元件 ---
+    const SpeechText = ({ text, className = "", textClass = "" }) => (
+      <div className={`flex items-start gap-3 ${className}`}>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation(); // 避免點擊按鈕時觸發外層 onClick
+            speakText(text);
+          }}
+          className="mt-1 flex-shrink-0 p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full transition-colors z-10 relative"
+          title="聽語音"
+        >
+          <IconVolume2 size={20} />
+        </button>
+        <span className={`leading-relaxed ${textClass}`}>{text}</span>
+      </div>
+    );
+
+    function App() {
+      const [view, setView] = useState('login'); // login, module, result, dashboard
+      const [seatNumber, setSeatNumber] = useState('');
+      const [loginError, setLoginError] = useState('');
+      
+      // 模組狀態
+      const [currentModuleIdx, setCurrentModuleIdx] = useState(0);
+      const [currentStep, setCurrentStep] = useState('lesson'); // 'lesson' 或 'quiz'
+      
+      // 測驗與計分狀態
+      const [score, setScore] = useState(0);
+      const [isFirstAttempt, setIsFirstAttempt] = useState(true);
+      
+      // 錯誤定格狀態
+      const [frozen, setFrozen] = useState(false);
+      const [freezeCountdown, setFreezeCountdown] = useState(0);
+      const [selectedWrongOption, setSelectedWrongOption] = useState(null);
+      
+      // 成功動畫狀態
+      const [showSuccess, setShowSuccess] = useState(false);
+
+      // 初始化與清理
+      useEffect(() => {
+        return () => stopSpeech();
+      }, [view, currentModuleIdx, currentStep]);
+
+      // 定格倒數計時器 Effect
+      useEffect(() => {
+        let timer;
+        if (frozen && freezeCountdown > 0) {
+          timer = setTimeout(() => {
+            setFreezeCountdown(prev => prev - 1);
+          }, 1000);
+        } else if (frozen && freezeCountdown <= 0) {
+          setFrozen(false);
+          setSelectedWrongOption(null);
+        }
+        return () => clearTimeout(timer);
+      }, [frozen, freezeCountdown]);
+
+      // --- 登入邏輯 ---
+      const handleLogin = () => {
+        const input = seatNumber.trim();
+        if (!input) {
+          setLoginError('請輸入座號喔！');
+          return;
+        }
+        if (input === '0615') {
+          setView('dashboard');
+          setLoginError('');
+          setSeatNumber('');
+        } else {
+          setView('module');
+          setLoginError('');
+          setScore(0);
+          setCurrentModuleIdx(0);
+          setCurrentStep('lesson');
+        }
+      };
+
+      // --- 測驗作答邏輯 ---
+      const handleAnswer = (optionIdx) => {
+        if (frozen || showSuccess) return;
+
+        const module = MODULES[currentModuleIdx];
+        const correctIdx = module.correctAnswer;
+
+        if (optionIdx === correctIdx) {
+          // 答對了
+          stopSpeech();
+          speakText("答對了！太棒了！");
+          
+          if (isFirstAttempt) {
+            setScore(prev => prev + 20); // 初次答對得 20 分
+          }
+          
+          setShowSuccess(true);
+          
+          setTimeout(() => {
+            setShowSuccess(false);
+            if (currentModuleIdx < MODULES.length - 1) {
+              // 進入下一個知識點
+              setCurrentModuleIdx(prev => prev + 1);
+              setCurrentStep('lesson');
+              setIsFirstAttempt(true);
+            } else {
+              // 結束所有測驗
+              saveResult(score + (isFirstAttempt ? 20 : 0));
+              setView('result');
+            }
+          }, 3000); // 灑花展示 3 秒後進入下一關
+
+        } else {
+          // 答錯了
+          stopSpeech();
+          speakText("哎呀，答錯了！請看清楚正確答案，畫面將定格十秒鐘。");
+          setFrozen(true);
+          setFreezeCountdown(10); // 定格 10 秒
+          setSelectedWrongOption(optionIdx);
+          setIsFirstAttempt(false); // 失去本題得分機會
+        }
+      };
+
+      // --- 儲存成績 ---
+      const saveResult = (finalScore) => {
+        const records = JSON.parse(localStorage.getItem('science_quiz_records') || '[]');
+        records.push({
+          seatNumber,
+          score: finalScore,
+          date: new Date().toLocaleString('zh-TW')
+        });
+        localStorage.setItem('science_quiz_records', JSON.stringify(records));
+      };
+
+      // --- 畫面渲染函數 ---
+      const renderLogin = () => (
+        <div className="flex flex-col items-center justify-center min-h-[80vh]">
+          <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full text-center border-4 border-blue-50">
+            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <IconShieldCheck size={40} />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">自然科學挑戰</h1>
+            <p className="text-gray-500 mb-8">防止生鏽與保存食物</p>
+            
+            <div className="mb-6">
+              <div className="relative">
+                <IconUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={24} />
+                <input 
+                  type="text" 
+                  placeholder="請輸入你的座號 (教師請輸入密碼)"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg"
+                  value={seatNumber}
+                  onChange={(e) => setSeatNumber(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+              </div>
+              {loginError && <p className="text-red-500 mt-3 flex items-center justify-center gap-2"><IconXCircle size={16}/>{loginError}</p>}
+            </div>
+
+            <button 
+              onClick={handleLogin}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 transform transition hover:-translate-y-1 text-lg flex items-center justify-center gap-2"
+            >
+              <IconPlayCircle size={24} /> 開始挑戰 / 進入後台
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderModule = () => {
+        const currentModule = MODULES[currentModuleIdx];
+
+        if (currentStep === 'lesson') {
+          // --- 講解畫面 ---
+          return (
+            <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+              <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-blue-50">
+                <div className="bg-blue-500 p-6 text-white text-center relative">
+                  <span className="absolute left-6 top-6 bg-blue-400 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                    進度 {currentModuleIdx + 1} / {MODULES.length}
+                  </span>
+                  <div className="absolute right-6 top-6 bg-blue-600 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 shadow-sm">
+                    <IconTrophy size={16}/> {score} 分
+                  </div>
+                  <h2 className="text-3xl font-bold mt-8 mb-2">{currentModule.lessonTitle}</h2>
+                </div>
+                
+                <div className="p-8 space-y-8">
+                  {currentModule.lessonContent.map((text, idx) => (
+                    <div key={idx} className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
+                      <SpeechText text={text} textClass="text-2xl text-gray-700 font-medium" />
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="p-6 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+                  <div className="text-gray-500 font-medium">座號：{seatNumber}</div>
+                  <button 
+                    onClick={() => {
+                      stopSpeech();
+                      setCurrentStep('quiz');
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-green-200 transition-transform hover:-translate-y-1 text-lg"
+                  >
+                    聽懂了，進入測驗！ <IconArrowRight size={24} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        } 
+
+        // --- 測驗畫面 ---
+        return (
+          <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+            {showSuccess && <Confetti />}
+
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-yellow-100 relative">
+              
+              {/* Header */}
+              <div className="bg-yellow-400 p-6 flex justify-between items-end">
+                <div>
+                  <p className="text-yellow-900 font-bold mb-1 opacity-80">
+                    驗收第 {currentModuleIdx + 1} / {MODULES.length} 關
+                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900">聽題目，選出正確答案！</h2>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-xl shadow-sm text-yellow-600 font-bold flex items-center gap-2">
+                  <IconTrophy size={20} /> 積分: {score}
+                </div>
+              </div>
+
+              <div className="p-8 pb-8">
+                 <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 mb-6 shadow-sm">
+                    <SpeechText text={currentModule.question} textClass="text-2xl text-gray-800 font-bold" />
+                 </div>
+
+                 {/* Frozen Feedback Overlay */}
+                 {frozen && (
+                   <div className="bg-red-50 border-l-[6px] border-red-500 p-4 mb-6 rounded-r-xl flex items-center justify-between text-red-700 shadow-md">
+                      <div className="flex items-center gap-3">
+                        <IconXCircle size={28} className="animate-pulse"/>
+                        <div>
+                          <span className="block text-lg font-bold">答錯了！請看清楚正確答案！</span>
+                          <span className="block text-sm opacity-80">這題重新作答不計分喔。</span>
+                        </div>
+                      </div>
+                      <div className="bg-red-100 px-4 py-2 rounded-lg font-mono font-bold text-2xl flex items-center gap-2">
+                        <IconTimer size={24} /> {freezeCountdown} 秒
+                      </div>
+                   </div>
+                 )}
+                 
+                 {/* Success Feedback Overlay */}
+                 {showSuccess && (
+                   <div className="bg-green-50 border-l-[6px] border-green-500 p-5 mb-6 rounded-r-xl flex items-center gap-3 text-green-700 shadow-md animate-bounce">
+                      <IconCheckCircle2 size={32} />
+                      <span className="text-2xl font-bold">太棒了！答對囉！</span>
+                   </div>
+                 )}
+
+                 {/* Options */}
+                 <div className="space-y-4">
+                    {currentModule.options.map((opt, idx) => {
+                      
+                      // Style logic based on state
+                      let btnStyle = "bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700";
+                      let icon = null;
+
+                      if (frozen) {
+                        if (idx === currentModule.correctAnswer) {
+                          // 高亮正確答案
+                          btnStyle = "bg-green-100 border-green-500 text-green-800 scale-[1.02] shadow-md ring-4 ring-green-500/30 z-10";
+                          icon = <IconCheckCircle2 className="text-green-600" size={32} />;
+                        } else if (idx === selectedWrongOption) {
+                          // 標記選錯的答案
+                          btnStyle = "bg-red-50 border-red-300 text-red-400 opacity-50";
+                          icon = <IconXCircle className="text-red-400" size={32} />;
+                        } else {
+                          // 淡化其他選項
+                          btnStyle = "bg-gray-50 border-gray-200 text-gray-400 opacity-50";
+                        }
+                      } else if (showSuccess && idx === currentModule.correctAnswer) {
+                          btnStyle = "bg-green-100 border-green-500 text-green-800 shadow-md scale-[1.02]";
+                          icon = <IconCheckCircle2 className="text-green-500" size={32} />;
+                      } else if (showSuccess) {
+                          btnStyle = "bg-gray-50 border-gray-200 text-gray-400 opacity-50";
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={frozen || showSuccess}
+                          onClick={() => handleAnswer(idx)}
+                          className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${btnStyle} ${(frozen || showSuccess) ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md'}`}
+                        >
+                          <SpeechText 
+                            text={opt} 
+                            textClass={`text-xl font-medium ${frozen && idx === currentModule.correctAnswer ? 'text-green-800 font-bold' : ''}`} 
+                          />
+                          {icon}
+                        </button>
+                      );
+                    })}
+                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const renderResult = () => (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] animate-fade-in">
+          <Confetti />
+          <div className="bg-white p-12 rounded-3xl shadow-2xl max-w-lg w-full text-center border-4 border-yellow-400 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-32 bg-yellow-400 -z-10"></div>
+            <div className="w-24 h-24 bg-white text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <IconTrophy size={48} />
+            </div>
+            <h2 className="text-4xl font-black text-gray-800 mb-2">全部過關！</h2>
+            <p className="text-gray-500 text-lg mb-8">座號：{seatNumber}</p>
+            
+            <div className="bg-gray-50 p-8 rounded-2xl mb-8">
+              <p className="text-gray-500 font-bold mb-2">你的最終總積分</p>
+              <p className="text-7xl font-black text-blue-600">{score}</p>
+              <p className="text-sm text-gray-400 mt-2">滿分是 300 分喔！</p>
+            </div>
+
+            <button 
+              onClick={() => {
+                setSeatNumber('');
+                setView('login');
+              }}
+              className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 w-full text-xl"
+            >
+              <IconHome size={24} /> 回首頁
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderDashboard = () => {
+        const records = JSON.parse(localStorage.getItem('science_quiz_records') || '[]');
+
+        return (
+          <div className="max-w-4xl mx-auto p-6 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-gray-200">
+              <div className="bg-gray-800 p-6 text-white flex justify-between items-center">
+                <h2 className="text-2xl font-bold flex items-center gap-3"><IconShieldCheck /> 教師後台系統</h2>
+                <button 
+                  onClick={() => {
+                    setSeatNumber('');
+                    setView('login');
+                  }}
+                  className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+                >
+                  <IconHome size={16} /> 登出
+                </button>
+              </div>
+              
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-6 bg-blue-50 p-4 rounded-xl text-blue-800">
+                  <IconTrophy size={24} className="text-blue-500"/>
+                  <div>
+                    <p className="font-bold">測驗紀錄</p>
+                    <p className="text-sm opacity-80">共有 {records.length} 筆作答紀錄</p>
+                  </div>
+                </div>
+
+                {records.length === 0 ? (
+                  <div className="text-center text-gray-400 py-12">
+                    <p className="text-xl">目前還沒有學生作答紀錄喔！</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-600">
+                          <th className="p-4 rounded-tl-xl">座號</th>
+                          <th className="p-4">得分 (滿分300)</th>
+                          <th className="p-4 rounded-tr-xl">作答時間</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {records.map((rec, idx) => (
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="p-4 font-bold text-gray-800">{rec.seatNumber}</td>
+                            <td className="p-4 font-bold text-blue-600">{rec.score} 分</td>
+                            <td className="p-4 text-gray-500 text-sm">{rec.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      return (
+        <>
+          <nav className="bg-white/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-center shadow-sm">
+            <h1 className="text-xl font-black text-blue-800 tracking-wider">🌟 防止生鏽與保存食物・互動挑戰</h1>
+          </nav>
+          <main className="container mx-auto py-8">
+            {view === 'login' && renderLogin()}
+            {view === 'module' && renderModule()}
+            {view === 'result' && renderResult()}
+            {view === 'dashboard' && renderDashboard()}
+          </main>
+        </>
+      );
+    }
+
+    // 將 React 渲染到畫面中
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
