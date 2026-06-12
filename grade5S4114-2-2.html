@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>揭祕動物的世界・互動挑戰</title>
+  
+  <!-- 引入 Tailwind CSS (負責畫面排版與美化) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入 React 與 ReactDOM (負責核心互動邏輯) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- 引入 Babel (讓瀏覽器能看得懂 JSX 語法) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 font-sans selection:bg-green-200 min-h-screen">
+  
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- 圖示元件定義區 (取代外部依賴，確保單檔可直接執行) ---
+    const IconVolume2 = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>;
+    const IconPlayCircle = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>;
+    const IconCheckCircle2 = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>;
+    const IconXCircle = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>;
+    const IconArrowRight = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+    const IconUser = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+    const IconTrophy = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7c0 6 3 10 6 10s6-4 6-10V2Z"/></svg>;
+    const IconShieldCheck = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>;
+    const IconHome = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+    const IconTimer = ({ size=24, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></svg>;
+
+    // --- 資料定義區 (第四單元 15個模組) ---
+    const MODULES = [
+      {
+        lessonTitle: "第一課：什麼是族群？",
+        lessonContent: [
+          "在自然環境中，生活在同一個特定區域內，且屬於「同一種」的動物，我們會把它們稱為一個「族群」。",
+          "例如：池塘裡的 6 隻大肚魚是一個族群，3 隻青蛙則是另一個族群。"
+        ],
+        question: "小宇在生態池看到 5 隻大肚魚和 3 隻烏龜，請問這裡共有幾個動物「族群」？",
+        options: ["1 個", "2 個", "8 個"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第二課：什麼是群集？",
+        lessonContent: [
+          "在大自然裡，任何一種動物族群都不能單獨生存。",
+          "當許多「不同種」的生物族群同時生活在同一個環境裡，這些族群集合在一起就稱為「群集」。"
+        ],
+        question: "許多不同種類的動植物族群，共同生活在一個區域內，合稱為什麼？",
+        options: ["家族", "社會", "群集"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第三課：臺灣獼猴的社會",
+        lessonContent: [
+          "臺灣獼猴是臺灣原生的靈長類，牠們是群居的動物，有著社會性的分工。",
+          "有趣的是，牠們的族群是由雌猴（母猴）主導的，屬於「母系社會」喔！"
+        ],
+        question: "關於臺灣獼猴的社會結構，下列哪一個描述是正確的？",
+        options: ["由最強壯的雄猴單獨統治", "屬於由雌猴主導的母系社會", "大家沒有分工，各自生活"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第四課：臺灣獼猴的分工",
+        lessonContent: [
+          "猴群中位階最高的是「核心雌猴」，負責帶領整個猴群。",
+          "而「核心雄猴」必須努力服務猴群獲得認可，才能享有食物和交配優先權，並要協助保護猴群。"
+        ],
+        question: "在臺灣獼猴的社會中，負責「帶領整個猴群活動」的領導者是誰？",
+        options: ["一般雄猴", "核心雄猴", "核心雌猴"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第五課：候鳥黑面琵鷺",
+        lessonContent: [
+          "有些動物會為了生存而長途旅行！黑面琵鷺是一種數量稀少的候鳥。",
+          "每年秋冬會因為北方天氣寒冷、缺乏食物，而分批飛到溫暖的臺灣（如臺南七股）來過冬。"
+        ],
+        question: "為什麼黑面琵鷺每年冬天要大老遠從北方飛來臺灣過冬呢？",
+        options: ["因為北方冬天太冷且缺乏食物", "為了來臺灣尋找特定的配偶", "因為北方的天敵在冬天會變多"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第六課：黑面琵鷺的特徵",
+        lessonContent: [
+          "黑面琵鷺的嘴巴長長的、前端扁扁的，形狀就像一把「飯匙」（琵琶）。",
+          "這種特殊的嘴巴形狀，非常方便牠們在水中攪動並撈起魚蝦來吃。"
+        ],
+        question: "黑面琵鷺扁平呈「匙狀」的嘴喙，對牠們的生活有什麼幫助？",
+        options: ["可以用來築巢", "方便在水中攪動並撈起食物", "可以發出很大的聲音嚇跑敵人"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第七課：適應溫度變化",
+        lessonContent: [
+          "當環境溫度改變時，動物有不同的適應方法來維持體溫。",
+          "例如：天氣炎熱時，蜥蜴會躲到陰涼處；天氣寒冷時，烏龜會爬到石頭上晒太陽，熊則會進入冬眠。"
+        ],
+        question: "當天氣變得很寒冷的時候，下列哪一種動物的行為是為了適應低溫？",
+        options: ["臺灣獼猴互相打架", "黑面琵鷺飛回寒冷的北方", "熊進入冬眠減少活動"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第八課：交互作用（共生與寄生）",
+        lessonContent: [
+          "生物之間有不同的互動關係。螞蟻會保護蚜蟲，蚜蟲則分泌甜液給螞蟻吃，這叫「共生」。",
+          "但像牛蜱會吸食狗狗的血液，讓狗生病發炎，這叫作「寄生」。"
+        ],
+        question: "蚜蟲分泌甜液給螞蟻吃，螞蟻保護蚜蟲不被吃掉。這種互相幫助的關係稱為什麼？",
+        options: ["寄生", "共生", "競爭"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第九課：交互作用（競爭與掠食）",
+        lessonContent: [
+          "大自然中也有殘酷的一面。水鳥捕食小魚填飽肚子，稱為「掠食」。",
+          "而兩隻野狼為了搶奪同一塊肉而互相打架，則稱為「競爭」。"
+        ],
+        question: "兩隻野狼為了搶奪同一塊獵物的肉而互相打架，這屬於哪一種交互作用？",
+        options: ["競爭", "掠食", "共生"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第十課：卵生動物",
+        lessonContent: [
+          "不同的動物有不同的繁殖方式。像雞、企鵝這樣的動物，母體會將卵產出體外。",
+          "胚胎在「母體外」發育，養分完全來自於「卵黃」，這稱為「卵生」。"
+        ],
+        question: "關於「卵生動物」（例如雞）的繁殖方式，下列哪一項敘述是正確的？",
+        options: ["胚胎在母體的肚子裡長大", "胚胎發育的養分主要來自母體", "胚胎發育的養分主要來自於卵"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第十一課：胎生動物",
+        lessonContent: [
+          "像狗、貓、人類等哺乳動物，受精卵會在「母體內」發育。",
+          "胚胎由母體提供養分，直到發育成完整的個體後才生出來，這稱為「胎生」。"
+        ],
+        question: "柴犬（狗）的寶寶是在媽媽的肚子裡吸收母體養分長大的，這種繁殖方式稱為什麼？",
+        options: ["卵生", "胎生", "卵胎生"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第十二課：繁殖數量的比較",
+        lessonContent: [
+          "通常來說，卵生動物因為卵在體外發育，容易受到環境或天敵的破壞而無法存活。",
+          "所以為了繁衍，卵生動物一次「產卵的數量」通常會多於胎生動物產下的寶寶數量。"
+        ],
+        question: "比較卵生動物和胎生動物，哪一種通常一次會產下比較多的後代（卵或寶寶）？",
+        options: ["通常卵生動物的產卵數量較多", "通常胎生動物生下的寶寶較多", "兩種動物生下來的數量通常一樣多"],
+        correctAnswer: 0
+      },
+      {
+        lessonTitle: "第十三課：皇帝企鵝的求偶",
+        lessonContent: [
+          "皇帝企鵝是體型最大的企鵝，牠們平時生活在海上的浮冰。",
+          "到了繁殖季時，牠們會群聚在陸地，並且利用「鳴叫」的方式來尋找配偶、進行求偶。"
+        ],
+        question: "皇帝企鵝在繁殖季節時，主要利用什麼方式來「求偶」？",
+        options: ["展現漂亮的羽毛跳舞", "互相打架比力氣", "發出鳴叫聲"],
+        correctAnswer: 2
+      },
+      {
+        lessonTitle: "第十四課：皇帝企鵝的育幼",
+        lessonContent: [
+          "皇帝企鵝媽媽產下一顆卵後就會去海裡覓食。",
+          "這時，企鵝爸爸會把卵放在「自己的腳上」孵化保暖，期間不吃不喝，完全靠體內的脂肪維持生命！"
+        ],
+        question: "在皇帝企鵝的家族中，是由誰負責在冰天雪地裡把卵放在腳上孵化保暖呢？",
+        options: ["企鵝媽媽", "企鵝爸爸", "其他未成年的小企鵝"],
+        correctAnswer: 1
+      },
+      {
+        lessonTitle: "第十五課：動物生存總結",
+        lessonContent: [
+          "動物透過運動覓食、遷徙適應氣溫、求偶交配、分工合作與育幼，展現出多樣的行為。",
+          "大自然中這些神奇的行為與努力，都是為了能夠生存下去，並且繁衍下一代。"
+        ],
+        question: "無論是黑面琵鷺的遷徙、臺灣獼猴的分工，還是皇帝企鵝的孵卵，動物們這些行為最主要的目的通常是什麼？",
+        options: ["為了讓人類觀察與研究", "為了能生存下去並繁衍下一代", "為了消耗體內過多的能量"],
+        correctAnswer: 1
+      }
+    ];
+
+    // --- 紙吹雪灑花動畫組件 ---
+    const Confetti = () => {
+      const pieces = Array.from({ length: 60 }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 1.5}s`,
+        animationDuration: `${2 + Math.random() * 2}s`,
+        color: ['#ffcfdf', '#fefdca', '#e0f9b5', '#a5dee5', '#ff9999', '#fcd34d'][Math.floor(Math.random() * 6)],
+        shape: Math.random() > 0.5 ? 'circle' : 'square',
+        size: `${8 + Math.random() * 10}px`
+      }));
+
+      return (
+        <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+          {pieces.map(p => (
+            <div
+              key={p.id}
+              className="absolute top-[-20px] opacity-90"
+              style={{
+                left: p.left,
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                borderRadius: p.shape === 'circle' ? '50%' : '2px',
+                animation: `fall ${p.animationDuration} linear ${p.animationDelay} forwards`
+              }}
+            />
+          ))}
+          <style>{`
+            @keyframes fall {
+              0% { transform: translateY(-10vh) rotate(0deg) scale(1); opacity: 1; }
+              100% { transform: translateY(110vh) rotate(720deg) scale(0.8); opacity: 0; }
+            }
+          `}</style>
+        </div>
+      );
+    };
+
+    // --- 語音輔助函數 ---
+    const speakText = (text) => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      }
+    };
+
+    const stopSpeech = () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+
+    // --- 共用語音文字元件 ---
+    const SpeechText = ({ text, className = "", textClass = "" }) => (
+      <div className={`flex items-start gap-3 ${className}`}>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation(); // 避免點擊按鈕時觸發外層 onClick
+            speakText(text);
+          }}
+          className="mt-1 flex-shrink-0 p-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-full transition-colors z-10 relative"
+          title="聽語音"
+        >
+          <IconVolume2 size={20} />
+        </button>
+        <span className={`leading-relaxed ${textClass}`}>{text}</span>
+      </div>
+    );
+
+    function App() {
+      const [view, setView] = useState('login'); // login, module, result, dashboard
+      const [seatNumber, setSeatNumber] = useState('');
+      const [loginError, setLoginError] = useState('');
+      
+      // 模組狀態
+      const [currentModuleIdx, setCurrentModuleIdx] = useState(0);
+      const [currentStep, setCurrentStep] = useState('lesson'); // 'lesson' 或 'quiz'
+      
+      // 測驗與計分狀態
+      const [score, setScore] = useState(0);
+      const [isFirstAttempt, setIsFirstAttempt] = useState(true);
+      
+      // 錯誤定格狀態
+      const [frozen, setFrozen] = useState(false);
+      const [freezeCountdown, setFreezeCountdown] = useState(0);
+      const [selectedWrongOption, setSelectedWrongOption] = useState(null);
+      
+      // 成功動畫狀態
+      const [showSuccess, setShowSuccess] = useState(false);
+
+      // 初始化與清理
+      useEffect(() => {
+        return () => stopSpeech();
+      }, [view, currentModuleIdx, currentStep]);
+
+      // 定格倒數計時器 Effect
+      useEffect(() => {
+        let timer;
+        if (frozen && freezeCountdown > 0) {
+          timer = setTimeout(() => {
+            setFreezeCountdown(prev => prev - 1);
+          }, 1000);
+        } else if (frozen && freezeCountdown <= 0) {
+          setFrozen(false);
+          setSelectedWrongOption(null);
+        }
+        return () => clearTimeout(timer);
+      }, [frozen, freezeCountdown]);
+
+      // --- 登入邏輯 ---
+      const handleLogin = () => {
+        const input = seatNumber.trim();
+        if (!input) {
+          setLoginError('請輸入座號喔！');
+          return;
+        }
+        if (input === '0615') {
+          setView('dashboard');
+          setLoginError('');
+          setSeatNumber('');
+        } else {
+          setView('module');
+          setLoginError('');
+          setScore(0);
+          setCurrentModuleIdx(0);
+          setCurrentStep('lesson');
+        }
+      };
+
+      // --- 測驗作答邏輯 ---
+      const handleAnswer = (optionIdx) => {
+        if (frozen || showSuccess) return;
+
+        const module = MODULES[currentModuleIdx];
+        const correctIdx = module.correctAnswer;
+
+        if (optionIdx === correctIdx) {
+          // 答對了
+          stopSpeech();
+          speakText("答對了！太棒了！");
+          
+          if (isFirstAttempt) {
+            setScore(prev => prev + 20); // 初次答對得 20 分
+          }
+          
+          setShowSuccess(true);
+          
+          setTimeout(() => {
+            setShowSuccess(false);
+            if (currentModuleIdx < MODULES.length - 1) {
+              // 進入下一個知識點
+              setCurrentModuleIdx(prev => prev + 1);
+              setCurrentStep('lesson');
+              setIsFirstAttempt(true);
+            } else {
+              // 結束所有測驗
+              saveResult(score + (isFirstAttempt ? 20 : 0));
+              setView('result');
+            }
+          }, 3000); // 灑花展示 3 秒後進入下一關
+
+        } else {
+          // 答錯了
+          stopSpeech();
+          speakText("哎呀，答錯了！請看清楚正確答案，畫面將定格十秒鐘。");
+          setFrozen(true);
+          setFreezeCountdown(10); // 定格 10 秒
+          setSelectedWrongOption(optionIdx);
+          setIsFirstAttempt(false); // 失去本題得分機會
+        }
+      };
+
+      // --- 儲存成績 ---
+      const saveResult = (finalScore) => {
+        const records = JSON.parse(localStorage.getItem('animal_quiz_records') || '[]');
+        records.push({
+          seatNumber,
+          score: finalScore,
+          date: new Date().toLocaleString('zh-TW')
+        });
+        localStorage.setItem('animal_quiz_records', JSON.stringify(records));
+      };
+
+      // --- 畫面渲染函數 ---
+      const renderLogin = () => (
+        <div className="flex flex-col items-center justify-center min-h-[80vh]">
+          <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full text-center border-4 border-green-50">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <IconShieldCheck size={40} />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">揭祕動物的世界</h1>
+            <p className="text-gray-500 mb-8">族群、群集與生存之道</p>
+            
+            <div className="mb-6">
+              <div className="relative">
+                <IconUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={24} />
+                <input 
+                  type="text" 
+                  placeholder="請輸入你的座號 (教師請輸入密碼)"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all text-lg"
+                  value={seatNumber}
+                  onChange={(e) => setSeatNumber(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+              </div>
+              {loginError && <p className="text-red-500 mt-3 flex items-center justify-center gap-2"><IconXCircle size={16}/>{loginError}</p>}
+            </div>
+
+            <button 
+              onClick={handleLogin}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200 transform transition hover:-translate-y-1 text-lg flex items-center justify-center gap-2"
+            >
+              <IconPlayCircle size={24} /> 開始挑戰 / 進入後台
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderModule = () => {
+        const currentModule = MODULES[currentModuleIdx];
+
+        if (currentStep === 'lesson') {
+          // --- 講解畫面 ---
+          return (
+            <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+              <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-green-50">
+                <div className="bg-green-500 p-6 text-white text-center relative">
+                  <span className="absolute left-6 top-6 bg-green-400 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                    進度 {currentModuleIdx + 1} / {MODULES.length}
+                  </span>
+                  <div className="absolute right-6 top-6 bg-green-600 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 shadow-sm">
+                    <IconTrophy size={16}/> {score} 分
+                  </div>
+                  <h2 className="text-3xl font-bold mt-8 mb-2">{currentModule.lessonTitle}</h2>
+                </div>
+                
+                <div className="p-8 space-y-8">
+                  {currentModule.lessonContent.map((text, idx) => (
+                    <div key={idx} className="bg-green-50 p-6 rounded-2xl border border-green-100 shadow-sm">
+                      <SpeechText text={text} textClass="text-2xl text-gray-800 font-medium" />
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="p-6 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+                  <div className="text-gray-500 font-medium">座號：{seatNumber}</div>
+                  <button 
+                    onClick={() => {
+                      stopSpeech();
+                      setCurrentStep('quiz');
+                    }}
+                    className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-teal-200 transition-transform hover:-translate-y-1 text-lg"
+                  >
+                    聽懂了，進入測驗！ <IconArrowRight size={24} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        } 
+
+        // --- 測驗畫面 ---
+        return (
+          <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+            {showSuccess && <Confetti />}
+
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-yellow-100 relative">
+              
+              {/* Header */}
+              <div className="bg-yellow-400 p-6 flex justify-between items-end">
+                <div>
+                  <p className="text-yellow-900 font-bold mb-1 opacity-80">
+                    驗收第 {currentModuleIdx + 1} / {MODULES.length} 關
+                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900">聽題目，選出正確答案！</h2>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-xl shadow-sm text-yellow-600 font-bold flex items-center gap-2">
+                  <IconTrophy size={20} /> 積分: {score}
+                </div>
+              </div>
+
+              <div className="p-8 pb-8">
+                 <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 mb-6 shadow-sm">
+                    <SpeechText text={currentModule.question} textClass="text-2xl text-gray-900 font-bold" />
+                 </div>
+
+                 {/* Frozen Feedback Overlay */}
+                 {frozen && (
+                   <div className="bg-red-50 border-l-[6px] border-red-500 p-4 mb-6 rounded-r-xl flex items-center justify-between text-red-700 shadow-md">
+                      <div className="flex items-center gap-3">
+                        <IconXCircle size={28} className="animate-pulse"/>
+                        <div>
+                          <span className="block text-lg font-bold">答錯了！請看清楚正確答案！</span>
+                          <span className="block text-sm opacity-80">這題重新作答不計分喔。</span>
+                        </div>
+                      </div>
+                      <div className="bg-red-100 px-4 py-2 rounded-lg font-mono font-bold text-2xl flex items-center gap-2">
+                        <IconTimer size={24} /> {freezeCountdown} 秒
+                      </div>
+                   </div>
+                 )}
+                 
+                 {/* Success Feedback Overlay */}
+                 {showSuccess && (
+                   <div className="bg-green-50 border-l-[6px] border-green-500 p-5 mb-6 rounded-r-xl flex items-center gap-3 text-green-700 shadow-md animate-bounce">
+                      <IconCheckCircle2 size={32} />
+                      <span className="text-2xl font-bold">太棒了！答對囉！</span>
+                   </div>
+                 )}
+
+                 {/* Options */}
+                 <div className="space-y-4">
+                    {currentModule.options.map((opt, idx) => {
+                      
+                      // Style logic based on state
+                      let btnStyle = "bg-gray-50 border-gray-200 hover:bg-green-50 hover:border-green-300 text-gray-700";
+                      let icon = null;
+
+                      if (frozen) {
+                        if (idx === currentModule.correctAnswer) {
+                          // 高亮正確答案
+                          btnStyle = "bg-green-100 border-green-500 text-green-800 scale-[1.02] shadow-md ring-4 ring-green-500/30 z-10";
+                          icon = <IconCheckCircle2 className="text-green-600" size={32} />;
+                        } else if (idx === selectedWrongOption) {
+                          // 標記選錯的答案
+                          btnStyle = "bg-red-50 border-red-300 text-red-400 opacity-50";
+                          icon = <IconXCircle className="text-red-400" size={32} />;
+                        } else {
+                          // 淡化其他選項
+                          btnStyle = "bg-gray-50 border-gray-200 text-gray-400 opacity-50";
+                        }
+                      } else if (showSuccess && idx === currentModule.correctAnswer) {
+                          btnStyle = "bg-green-100 border-green-500 text-green-800 shadow-md scale-[1.02]";
+                          icon = <IconCheckCircle2 className="text-green-500" size={32} />;
+                      } else if (showSuccess) {
+                          btnStyle = "bg-gray-50 border-gray-200 text-gray-400 opacity-50";
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={frozen || showSuccess}
+                          onClick={() => handleAnswer(idx)}
+                          className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${btnStyle} ${(frozen || showSuccess) ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md'}`}
+                        >
+                          <SpeechText 
+                            text={opt} 
+                            textClass={`text-xl font-medium ${frozen && idx === currentModule.correctAnswer ? 'text-green-800 font-bold' : ''}`} 
+                          />
+                          {icon}
+                        </button>
+                      );
+                    })}
+                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const renderResult = () => (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] animate-fade-in">
+          <Confetti />
+          <div className="bg-white p-12 rounded-3xl shadow-2xl max-w-lg w-full text-center border-4 border-yellow-400 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-32 bg-yellow-400 -z-10"></div>
+            <div className="w-24 h-24 bg-white text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <IconTrophy size={48} />
+            </div>
+            <h2 className="text-4xl font-black text-gray-800 mb-2">全部過關！</h2>
+            <p className="text-gray-500 text-lg mb-8">座號：{seatNumber}</p>
+            
+            <div className="bg-gray-50 p-8 rounded-2xl mb-8">
+              <p className="text-gray-500 font-bold mb-2">你的最終總積分</p>
+              <p className="text-7xl font-black text-green-600">{score}</p>
+              <p className="text-sm text-gray-400 mt-2">滿分是 300 分喔！</p>
+            </div>
+
+            <button 
+              onClick={() => {
+                setSeatNumber('');
+                setView('login');
+              }}
+              className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 w-full text-xl"
+            >
+              <IconHome size={24} /> 回首頁
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderDashboard = () => {
+        const records = JSON.parse(localStorage.getItem('animal_quiz_records') || '[]');
+
+        return (
+          <div className="max-w-4xl mx-auto p-6 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-gray-200">
+              <div className="bg-gray-800 p-6 text-white flex justify-between items-center">
+                <h2 className="text-2xl font-bold flex items-center gap-3"><IconShieldCheck /> 教師後台系統</h2>
+                <button 
+                  onClick={() => {
+                    setSeatNumber('');
+                    setView('login');
+                  }}
+                  className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+                >
+                  <IconHome size={16} /> 登出
+                </button>
+              </div>
+              
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-6 bg-green-50 p-4 rounded-xl text-green-800">
+                  <IconTrophy size={24} className="text-green-500"/>
+                  <div>
+                    <p className="font-bold">測驗紀錄</p>
+                    <p className="text-sm opacity-80">共有 {records.length} 筆作答紀錄</p>
+                  </div>
+                </div>
+
+                {records.length === 0 ? (
+                  <div className="text-center text-gray-400 py-12">
+                    <p className="text-xl">目前還沒有學生作答紀錄喔！</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-600">
+                          <th className="p-4 rounded-tl-xl">座號</th>
+                          <th className="p-4">得分 (滿分300)</th>
+                          <th className="p-4 rounded-tr-xl">作答時間</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {records.map((rec, idx) => (
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="p-4 font-bold text-gray-800">{rec.seatNumber}</td>
+                            <td className="p-4 font-bold text-green-600">{rec.score} 分</td>
+                            <td className="p-4 text-gray-500 text-sm">{rec.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      return (
+        <>
+          <nav className="bg-white/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-center shadow-sm">
+            <h1 className="text-xl font-black text-green-800 tracking-wider">🌟 揭祕動物的世界・互動挑戰</h1>
+          </nav>
+          <main className="container mx-auto py-8">
+            {view === 'login' && renderLogin()}
+            {view === 'module' && renderModule()}
+            {view === 'result' && renderResult()}
+            {view === 'dashboard' && renderDashboard()}
+          </main>
+        </>
+      );
+    }
+
+    // 將 React 渲染到畫面中
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
