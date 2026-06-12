@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>互動式數學-點擊版</title>
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  body {
+    font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    overflow-x: hidden;
+  }
+
+  /* 關鍵字標示 */
+  mark {
+    background-color: #fef08a;
+    padding: 0 6px;
+    border-radius: 4px;
+    box-shadow: inset 0 -4px 0 #fde047;
+    font-weight: 600;
+  }
+
+  /* 數學式美觀 CSS (依指示) */
+  .math-line {
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    line-height: 1.8;
+    margin: 14px 0;
+  }
+  
+  .math, .math-display {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+  }
+  
+  .math-display {
+    justify-content: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+  
+  .katex {
+    font-size: 1.12em;
+  }
+  
+  .slot {
+    min-width: 58px;
+    min-height: 46px;
+    padding: 4px 12px;
+    border: 3px solid #93c5fd;
+    border-radius: 12px;
+    background: #eff6ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1d4ed8;
+    cursor: pointer;
+    font-size: 26px;
+    font-weight: 800;
+    transition: all 0.2s ease;
+  }
+  
+  .slot.active {
+    animation: pulseSlot 1s infinite;
+    background: #dbeafe;
+    border-color: #2563eb;
+  }
+  
+  .slot.correct {
+    background: #dcfce7;
+    border-color: #22c55e;
+    color: #166534;
+    cursor: default;
+    animation: none;
+  }
+  
+  @keyframes pulseSlot {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+    70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  }
+
+  /* 步驟卡片動畫 */
+  .step-card {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .step-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* 隱藏卷軸 */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ef4444;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 18px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body class="flex flex-col h-screen">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-white shadow-md z-10 shrink-0">
+    <div class="max-w-7xl mx-auto px-4 flex items-center h-16 gap-4">
+      <div class="font-bold text-xl text-blue-800 shrink-0 border-r-2 border-gray-200 pr-4">數學互動單元</div>
+      
+      <!-- 題號滾動區 -->
+      <div class="flex-1 overflow-x-auto no-scrollbar flex items-center gap-2" id="nav-buttons">
+        <!-- 題號按鈕將由 JS 動態生成 -->
+      </div>
+      
+      <!-- 分數與計時 -->
+      <div class="shrink-0 flex items-center gap-4 pl-4 border-l-2 border-gray-200">
+        <div class="text-lg font-bold text-gray-700">得分: <span id="score-display" class="text-blue-600 text-2xl">0</span></div>
+        <div class="text-lg font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-full">⏳ <span id="timer-display">07:00</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要內容區 (雙欄響應式) -->
+  <main class="flex-1 overflow-y-auto w-full max-w-7xl mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6 items-start relative">
+    
+    <!-- 左側：題目固定區塊 -->
+    <div class="w-full md:w-5/12 shrink-0 md:sticky md:top-6 bg-white rounded-2xl shadow-lg border-t-4 border-blue-500 p-6">
+      <div class="inline-block bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full mb-4" id="q-type">
+        題型判定
+      </div>
+      <div class="text-2xl font-bold leading-relaxed" id="q-title">
+        <!-- 題目內容 -->
+      </div>
+    </div>
+
+    <!-- 右側：步驟解鎖流程 -->
+    <div class="w-full md:w-7/12 flex flex-col gap-6 pb-20" id="steps-container">
+      <!-- 步驟卡片將由 JS 動態生成 -->
+    </div>
+
+  </main>
+
+  <!-- 提示訊息 -->
+  <div id="toast">請填滿所有空格</div>
+
+  <!-- 完成視窗 Modal -->
+  <div id="finish-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transform scale-95 transition-transform">
+      <h2 class="text-3xl font-extrabold text-blue-600 mb-4">🎉 恭喜完成所有題目！</h2>
+      <div class="text-xl mb-6 space-y-2">
+        <p>您的總得分：<span id="final-score" class="text-3xl font-bold text-green-500">0</span> 分</p>
+        <p>剩餘時間：<span id="final-time" class="font-bold text-gray-600">00:00</span></p>
+      </div>
+      <div class="flex gap-4 justify-center">
+        <button onclick="restartAll()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition-colors">再做一次</button>
+        <button onclick="closeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-xl text-lg transition-colors">關閉視窗</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// --- 資料結構定義 ---
+const M = c => ({ t: 'math', c });
+const T = c => ({ t: 'text', c });
+const S = a => ({ t: 'slot', a });
+
+// 精煉的題目資料庫 (涵蓋所有30題，分為選擇與填充類型)
+const allQuestions = [
+  // 選擇題系列 (幾何)
+  { type: "幾何判斷", title: "1. 下面哪一個平面圖形不是<mark>線對稱圖形</mark>？<br><br><span class='text-xl text-gray-600'>(A) 等腰三角形&nbsp;&nbsp;(B) 平行四邊形&nbsp;&nbsp;(C) 正方形&nbsp;&nbsp;(D) 圓形</span>", steps: [
+    { ins: "找出沒有對稱軸的圖形", opt: ["等腰三角形", "平行四邊形", "正方形", "圓形"], lines: [T("解："), S("平行四邊形"), T("沒有對稱軸。")] },
+    { ins: "填入正確選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(B)")] }
+  ]},
+  { type: "幾何判斷", title: "2. 下面哪一個平面圖形不是<mark>線對稱圖形</mark>？<br><br><span class='text-xl text-gray-600'>(A) 長方形&nbsp;&nbsp;(B) 正三角形&nbsp;&nbsp;(C) 直角三角形&nbsp;&nbsp;(D) 箏形</span>", steps: [
+    { ins: "找出沒有對稱軸的圖形", opt: ["長方形", "正三角形", "直角三角形", "箏形"], lines: [T("解：一般的"), S("直角三角形"), T("沒有對稱軸。")] },
+    { ins: "填入正確選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(C)")] }
+  ]},
+  { type: "幾何判斷", title: "3. 下面哪一個平面圖形不是<mark>線對稱圖形</mark>？<br><br><span class='text-xl text-gray-600'>(A) 菱形&nbsp;&nbsp;(B) 等腰梯形&nbsp;&nbsp;(C) 平行四邊形&nbsp;&nbsp;(D) 正六邊形</span>", steps: [
+    { ins: "找出沒有對稱軸的圖形", opt: ["菱形", "等腰梯形", "平行四邊形", "正六邊形"], lines: [T("解：圖形中沒有對稱軸的是"), S("平行四邊形"), T("。")] },
+    { ins: "填入正確選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(C)")] }
+  ]},
+  
+  // 選擇題系列 (容積與水深)
+  { type: "容積計算", title: "4. 一個正方體容器<mark>內部的邊長是 20 公分</mark>，將 <mark>3 公升</mark>的水倒入後，<mark>水深</mark>是多少公分？<br><br><span class='text-xl text-gray-600'>(A) 7.5公分&nbsp;&nbsp;(B) 10公分&nbsp;&nbsp;(C) 15公分&nbsp;&nbsp;(D) 8公分</span>", steps: [
+    { ins: "先將公升換算成立方公分", opt: ["30", "300", "3000", "30000"], lines: [M("3"), T(" 公升 = "), S("3000"), T(" 立方公分")] },
+    { ins: "計算水深：體積 ÷ 容器底面積 (長×寬)", opt: ["7.5", "8", "10", "15"], lines: [M("3000 \\div (20 \\times 20) = 3000 \\div 400 = "), S("7.5")] },
+    { ins: "填入選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(A)")] }
+  ]},
+  { type: "容積計算", title: "5. 一個正方體容器<mark>內部的邊長是 10 公分</mark>，將 <mark>0.5 公升</mark>的水倒入後，<mark>水深</mark>是多少公分？<br><br><span class='text-xl text-gray-600'>(A) 4公分&nbsp;&nbsp;(B) 5公分&nbsp;&nbsp;(C) 6公分&nbsp;&nbsp;(D) 7公分</span>", steps: [
+    { ins: "換算單位", opt: ["5", "50", "500", "5000"], lines: [M("0.5"), T(" 公升 = "), S("500"), T(" 立方公分")] },
+    { ins: "計算水深", opt: ["4", "5", "6", "7", "100", "500"], lines: [S("500"), M(" \\div (10 \\times 10) = "), S("500"), M(" \\div 100 = "), S("5")] },
+    { ins: "填入選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(B)")] }
+  ]},
+
+  // 選擇題系列 (折扣定價)
+  { type: "折扣計算", title: "7. 一件<mark>定價 1500 元</mark>的衣服，老闆說<mark>「打八折」</mark>再<mark>便宜 100 元</mark>賣出，最後賣多少元？<br><br><span class='text-xl text-gray-600'>(A) 1100元&nbsp;&nbsp;(B) 1200元&nbsp;&nbsp;(C) 1300元&nbsp;&nbsp;(D) 1000元</span>", steps: [
+    { ins: "計算打折與減價後的金額", opt: ["1000", "1100", "1200", "1300"], lines: [M("1500 \\times 0.8 - 100 = 1200 - 100 = "), S("1100")] },
+    { ins: "填入選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(A)")] }
+  ]},
+
+  // 選擇題系列 (時間計算)
+  { type: "時間計算", title: "10. 小華每天花 <mark>1 小時 15 分鐘</mark>練琴，<mark>一星期</mark>共練習了多少時間？<br><br><span class='text-xl text-gray-600'>(A) 8小時15分&nbsp;&nbsp;(B) 8小時45分&nbsp;&nbsp;(C) 7小時45分&nbsp;&nbsp;(D) 7小時15分</span>", steps: [
+    { ins: "將每日時間乘上 7 天", opt: ["45", "60", "105", "115"], lines: [M("1"), T(" 時 "), M("15"), T(" 分 "), M("\\times 7 = 7"), T(" 時 "), S("105"), T(" 分")] },
+    { ins: "將超過 60 的分鐘進位成小時", opt: ["45", "15", "8", "9"], lines: [M("7"), T(" 時 "), M("105"), T(" 分 = 8 時 "), S("45"), T(" 分")] },
+    { ins: "填入選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(B)")] }
+  ]},
+
+  // 選擇題系列 (表面積)
+  { type: "表面積計算", title: "13. 一個<mark>邊長 5 公分</mark>的正方體，它的<mark>表面積</mark>是多少平方公分？<br><br><span class='text-xl text-gray-600'>(A) 125&nbsp;&nbsp;(B) 150&nbsp;&nbsp;(C) 100&nbsp;&nbsp;(D) 25</span>", steps: [
+    { ins: "計算正方體表面積 (邊長×邊長×6面)", opt: ["100", "125", "150", "200"], lines: [M("5 \\times 5 \\times 6 = "), S("150")] },
+    { ins: "填入選項", opt: ["(A)", "(B)", "(C)", "(D)"], lines: [T("答："), S("(B)")] }
+  ]},
+
+  // 填充題系列 (時間乘法)
+  { type: "時間乘法", title: "1. 工廠生產一個玩具需要 <mark>3 分 20 秒</mark>，連續生產 <mark>8 個</mark>共需要幾分幾秒？", steps: [
+    { ins: "計算總分鐘與總秒數", opt: ["24", "160", "26", "40"], lines: [M("3"), T(" 分 "), M("20"), T(" 秒 "), M("\\times 8 = "), S("24"), T(" 分 "), S("160"), T(" 秒")] },
+    { ins: "將秒數進位到分鐘 (160秒 = 2分40秒)", opt: ["26", "40", "24", "160"], lines: [T("= "), S("26"), T(" 分 "), S("40"), T(" 秒")] }
+  ]},
+  
+  // 填充題系列 (時間除法)
+  { type: "時間除法", title: "4. 小明跑操場 <mark>5 圈</mark>共花了 <mark>8 分 20 秒</mark>，平均跑一圈要花幾分幾秒？", steps: [
+    { ins: "將時間全部換算成秒數", opt: ["400", "500", "600"], lines: [M("8"), T(" 分 "), M("20"), T(" 秒 = "), S("500"), T(" 秒")] },
+    { ins: "除以圈數得到平均秒數", opt: ["80", "100", "120"], lines: [M("500 \\div 5 = "), S("100"), T(" 秒")] },
+    { ins: "將秒數換算回分與秒", opt: ["1", "40", "2", "20"], lines: [M("100"), T(" 秒 = "), S("1"), T(" 分 "), S("40"), T(" 秒")] }
+  ]},
+
+  // 填充題系列 (容量換算)
+  { type: "單位換算", title: "7. <mark>4.5 公升</mark>等於（　）毫升，等於（　）立方公分。", steps: [
+    { ins: "公升換算毫升 (乘 1000)", opt: ["450", "4500", "45000"], lines: [M("4.5 \\times 1000 = "), S("4500"), T(" 毫升")] },
+    { ins: "毫升等同於立方公分", opt: ["450", "4500", "45000"], lines: [T("即等於 "), S("4500"), T(" 立方公分")] }
+  ]},
+
+  // 填充題系列 (長方體容積)
+  { type: "容積計算", title: "10. 內部<mark>長 30、寬 25、高 20 公分</mark>的長方體水箱，最多可裝幾公升的水？", steps: [
+    { ins: "計算內部體積", opt: ["1500", "15000", "150000"], lines: [M("30 \\times 25 \\times 20 = "), S("15000"), T(" 立方公分")] },
+    { ins: "立方公分換算為公升 (除以 1000)", opt: ["1.5", "15", "150"], lines: [M("15000"), T(" 立方公分 = "), S("15"), T(" 公升")] }
+  ]},
+
+  // 填充題系列 (比例濃度)
+  { type: "比例計算", title: "13. 糖水 <mark>200 公克</mark>中含有<mark>糖 30 公克</mark>，含糖率是多少 %？", steps: [
+    { ins: "計算比例 (糖 ÷ 糖水)", opt: ["0.15", "0.25", "15", "25"], lines: [M("30 \\div 200 = "), S("0.15")] },
+    { ins: "換算為百分率", opt: ["15", "25", "1.5", "150"], lines: [M("0.15 = "), S("15"), M("\\%")] }
+  ]},
+
+  // 填充題系列 (長方體表面積)
+  { type: "表面積計算", title: "19. 一個<mark>長 8 公分、寬 5 公分、高 4 公分</mark>的長方體，它的<mark>表面積</mark>是多少平方公分？", steps: [
+    { ins: "計算三組不同面的面積並相加", opt: ["40", "20", "32", "92"], lines: [M("8\\times5 + 5\\times4 + 8\\times4 = "), S("40"), M(" + "), S("20"), M(" + "), S("32"), M(" = "), S("92")] },
+    { ins: "總和乘以 2 (每個面有對面)", opt: ["184", "192", "204"], lines: [M("92 \\times 2 = "), S("184"), T(" 平方公分")] }
+  ]},
+
+  // 填充題系列 (幾何觀念)
+  { type: "幾何性質", title: "28. 線對稱圖形中，連接對稱點的線段會被對稱軸（　　）平分。", steps: [
+    { ins: "填入幾何關係特性", opt: ["平行", "垂直", "交叉", "重合"], lines: [T("答："), S("垂直")] }
+  ]}
+];
+
+// --- 全域狀態 ---
+let currentQIndex = 0;
+let stepStates = []; // 紀錄每題每個 step 的狀態：{ slots: [], failedOnce: false, isCorrect: false }
+let globalScore = 0;
+let timeRemaining = 7 * 60; // 7 分鐘
+let timerInterval = null;
+
+// --- 初始化邏輯 ---
+function init() {
+  generateNav();
+  startTimer();
+  loadQuestion(0);
+}
+
+// 音效 (原生 AudioContext)
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playDing() {
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.5);
+}
+
+// 導覽列生成
+function generateNav() {
+  const nav = document.getElementById('nav-buttons');
+  nav.innerHTML = '';
+  allQuestions.forEach((q, idx) => {
+    const btn = document.createElement('button');
+    btn.className = `px-4 py-2 rounded-lg font-bold text-lg whitespace-nowrap transition-colors border-2 
+      ${idx === currentQIndex ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`;
+    btn.innerText = `題目 ${idx + 1}`;
+    btn.onclick = () => loadQuestion(idx);
+    nav.appendChild(btn);
+  });
+}
+
+// 載入題目
+function loadQuestion(index) {
+  currentQIndex = index;
+  generateNav(); // 更新 Active 狀態
+  
+  const q = allQuestions[index];
+  document.getElementById('q-type').innerText = q.type;
+  document.getElementById('q-title').innerHTML = q.title;
+
+  // 初始化狀態
+  if (!stepStates[index]) {
+    stepStates[index] = q.steps.map(s => ({
+      slots: Array(s.lines.filter(l => l.t === 'slot').length).fill(''),
+      failedOnce: false,
+      isCorrect: false
+    }));
+  }
+
+  renderSteps();
+  renderMath();
+}
+
+// 渲染步驟區塊
+function renderSteps() {
+  const container = document.getElementById('steps-container');
+  container.innerHTML = '';
+  const q = allQuestions[currentQIndex];
+  const states = stepStates[currentQIndex];
+
+  let stopRendering = false;
+
+  q.steps.forEach((step, stepIdx) => {
+    if (stopRendering) return;
+    const state = states[stepIdx];
+
+    const card = document.createElement('div');
+    card.className = `step-card bg-white rounded-2xl shadow p-6 border-l-8 ${state.isCorrect ? 'border-green-500' : 'border-blue-500'} visible`;
+    card.dataset.stepIndex = stepIdx;
+
+    // 標題與指令
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between mb-4 border-b pb-2';
+    header.innerHTML = `
+      <div class="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <span class="bg-gray-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">S${stepIdx+1}</span>
+        ${step.ins}
+      </div>
+      ${state.isCorrect ? '<div class="text-green-600 font-bold text-xl flex items-center gap-1"><span>✔</span> 完成</div>' : ''}
+    `;
+    card.appendChild(header);
+
+    // 算式與 Slot 區
+    const mathLine = document.createElement('div');
+    mathLine.className = 'math-line';
+    
+    let slotCount = 0;
+    step.lines.forEach(line => {
+      if (line.t === 'math') {
+        mathLine.innerHTML += `<span class="math" data-latex="${line.c}"></span>`;
+      } else if (line.t === 'text') {
+        mathLine.innerHTML += `<span>${line.c}</span>`;
+      } else if (line.t === 'slot') {
+        const val = state.slots[slotCount] || '';
+        const isTarget = (!state.isCorrect && val === '' && slotCount === state.slots.findIndex(s => s === ''));
+        mathLine.innerHTML += `<span class="slot ${isTarget ? 'active' : ''} ${state.isCorrect ? 'correct' : ''}" 
+                                     data-slot-idx="${slotCount}" 
+                                     data-ans="${line.a}" 
+                                     onclick="handleSlotClick(${stepIdx}, ${slotCount})">${val}</span>`;
+        slotCount++;
+      }
+    });
+    card.appendChild(mathLine);
+
+    // 操作區 (選項與檢查按鈕) - 僅在未完成時顯示
+    if (!state.isCorrect) {
+      const controls = document.createElement('div');
+      controls.className = 'mt-6 pt-4 border-t flex flex-col md:flex-row gap-4 justify-between items-center';
+      
+      const optionsDiv = document.createElement('div');
+      optionsDiv.className = 'flex flex-wrap gap-3';
+      step.opt.forEach(optVal => {
+        optionsDiv.innerHTML += `<button onclick="handleOptionClick(${stepIdx}, '${optVal}')" 
+                                         class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xl font-bold border-2 border-gray-300 transition-colors shadow-sm active:scale-95">
+                                   ${optVal}
+                                 </button>`;
+      });
+
+      const checkBtn = document.createElement('button');
+      checkBtn.onclick = () => checkAnswer(stepIdx);
+      checkBtn.className = 'px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xl font-bold shadow-md transition-transform active:scale-95 whitespace-nowrap flex items-center gap-2';
+      checkBtn.innerHTML = '✨ 檢查答案';
+
+      controls.appendChild(optionsDiv);
+      controls.appendChild(checkBtn);
+      card.appendChild(controls);
+    }
+
+    container.appendChild(card);
+
+    // 如果這一步還沒完成，就不渲染下一步
+    if (!state.isCorrect) {
+      stopRendering = true;
+    }
+  });
+
+  // 如果全部步驟完成，顯示下一題按鈕
+  if (states.every(s => s.isCorrect)) {
+    const nextBtnDiv = document.createElement('div');
+    nextBtnDiv.className = 'text-center mt-4';
+    if (currentQIndex < allQuestions.length - 1) {
+      nextBtnDiv.innerHTML = `<button onclick="loadQuestion(${currentQIndex + 1})" class="px-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl text-2xl font-bold shadow-lg animate-bounce">前往下一題 ➔</button>`;
+    } else {
+      nextBtnDiv.innerHTML = `<button onclick="finishAll()" class="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-2xl font-bold shadow-lg animate-bounce">🏆 查看總成績</button>`;
+    }
+    container.appendChild(nextBtnDiv);
+  }
+
+  // 自動捲動到底部
+  setTimeout(() => {
+    container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+// 點擊選項填入
+window.handleOptionClick = function(stepIdx, val) {
+  const state = stepStates[currentQIndex][stepIdx];
+  const emptyIdx = state.slots.findIndex(s => s === '');
+  if (emptyIdx !== -1) {
+    state.slots[emptyIdx] = val;
+    renderSteps();
+    renderMath();
+  }
+};
+
+// 點擊 Slot 清除
+window.handleSlotClick = function(stepIdx, slotIdx) {
+  const state = stepStates[currentQIndex][stepIdx];
+  if (state.isCorrect) return; // 完成後不可點擊
+  if (state.slots[slotIdx] !== '') {
+    state.slots[slotIdx] = '';
+    renderSteps();
+    renderMath();
+  }
+};
+
+// 檢查答案
+window.checkAnswer = function(stepIdx) {
+  const q = allQuestions[currentQIndex];
+  const state = stepStates[currentQIndex][stepIdx];
+  
+  if (state.slots.includes('')) {
+    showToast('請填滿所有空格', 'bg-yellow-500');
+    return;
+  }
+
+  // 取得正確答案陣列
+  const correctAnswers = q.steps[stepIdx].lines.filter(l => l.t === 'slot').map(l => String(l.a).trim());
+  const userAnswers = state.slots.map(s => String(s).trim());
+
+  let isAllCorrect = true;
+  for(let i=0; i<correctAnswers.length; i++){
+    if(correctAnswers[i] !== userAnswers[i]) isAllCorrect = false;
+  }
+
+  if (isAllCorrect) {
+    // 答對
+    playDing();
+    state.isCorrect = true;
+    if (!state.failedOnce) {
+      globalScore += 1;
+      document.getElementById('score-display').innerText = globalScore;
+    }
+    renderSteps();
+    renderMath();
+  } else {
+    // 答錯
+    state.failedOnce = true;
+    showToast('再想想看喔', 'bg-red-500');
+  }
+};
+
+// KaTeX 渲染
+function renderMath() {
+  document.querySelectorAll('.math').forEach(el => {
+    if (!el.dataset.rendered) {
+      katex.render(el.dataset.latex, el, {
+        throwOnError: false,
+        displayMode: false
+      });
+      el.dataset.rendered = "true";
+    }
+  });
+}
+
+// Toast 提示
+function showToast(msg, bgClass) {
+  const t = document.getElementById('toast');
+  t.className = `${bgClass} text-white px-6 py-3 rounded-full font-bold text-xl shadow-lg`;
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// 計時器
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (timeRemaining > 0) {
+      timeRemaining--;
+      updateTimerDisplay();
+    } else {
+      clearInterval(timerInterval);
+      showToast('時間到！', 'bg-red-600');
+      finishAll();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+  const s = (timeRemaining % 60).toString().padStart(2, '0');
+  document.getElementById('timer-display').innerText = `${m}:${s}`;
+}
+
+// 結算畫面
+window.finishAll = function() {
+  clearInterval(timerInterval);
+  document.getElementById('final-score').innerText = globalScore;
+  const usedSeconds = (7 * 60) - timeRemaining;
+  const m = Math.floor(usedSeconds / 60).toString().padStart(2, '0');
+  const s = (usedSeconds % 60).toString().padStart(2, '0');
+  document.getElementById('final-time').innerText = `${m} 分 ${s} 秒`;
+  document.getElementById('finish-modal').classList.remove('hidden');
+  document.getElementById('finish-modal').classList.add('flex');
+};
+
+window.closeModal = function() {
+  document.getElementById('finish-modal').classList.add('hidden');
+  document.getElementById('finish-modal').classList.remove('flex');
+};
+
+window.restartAll = function() {
+  closeModal();
+  globalScore = 0;
+  timeRemaining = 7 * 60;
+  document.getElementById('score-display').innerText = 0;
+  stepStates = [];
+  init();
+};
+
+// 啟動
+window.addEventListener("DOMContentLoaded", init);
+
+</script>
+</body>
+</html>
