@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小一數學：分與合大挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #fef08a; /* 暖黃色背景 */
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+        .bubble-btn {
+            transition: all 0.1s ease;
+        }
+        .bubble-btn:active {
+            transform: scale(0.95);
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.2) !important;
+        }
+        .btn-shadow {
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+        }
+        .number-bond-line {
+            background-color: #6b7280;
+            border-radius: 4px;
+        }
+        
+        /* 隱藏預設捲軸 */
+        ::-webkit-scrollbar { display: none; }
+        
+        /* 彈跳動畫 */
+        @keyframes bounce-soft {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-bounce-soft { animation: bounce-soft 2s infinite ease-in-out; }
+        
+        /* 震動動畫 (答錯用) */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.4s; }
+
+        /* 分動物件的轉場 */
+        .item-transition {
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        /* 格線背景增添筆記本感 */
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-grid">
+
+    <div id="app-container" class="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden relative border-8 border-white">
+        
+        <!-- ==================== 首頁選單 ==================== -->
+        <div id="home-screen" class="flex flex-col items-center justify-center p-6 min-h-[80vh] relative bg-gradient-to-b from-blue-50 to-white">
+            <div class="absolute top-4 right-4 text-6xl opacity-20">🧮</div>
+            <div class="absolute bottom-4 left-4 text-6xl opacity-20">📐</div>
+            
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-black text-blue-600 mb-8 text-center drop-shadow-sm flex flex-col gap-2">
+                <span>🌟 數學探險隊 🌟</span>
+                <span class="text-3xl sm:text-4xl text-orange-500">第四單元：分與合</span>
+            </h1>
+
+            <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-blue-100 w-full max-w-2xl mb-8">
+                
+                <!-- 選擇單元 -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b-4 border-blue-200 inline-block pb-1">1. 請選擇要挑戰的關卡：</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="selectMode('split')" id="btn-mode-split" class="mode-btn bubble-btn bg-pink-100 hover:bg-pink-200 border-4 border-pink-300 text-pink-700 font-bold text-xl py-4 rounded-2xl btn-shadow">
+                            🍎 分分看
+                        </button>
+                        <button onclick="selectMode('combine')" id="btn-mode-combine" class="mode-btn bubble-btn bg-green-100 hover:bg-green-200 border-4 border-green-300 text-green-700 font-bold text-xl py-4 rounded-2xl btn-shadow">
+                            🤝 合起來
+                        </button>
+                        <button onclick="selectMode('zero')" id="btn-mode-zero" class="mode-btn bubble-btn bg-purple-100 hover:bg-purple-200 border-4 border-purple-300 text-purple-700 font-bold text-xl py-4 rounded-2xl btn-shadow">
+                            🍩 0 的認識
+                        </button>
+                        <button onclick="selectMode('mixed')" id="btn-mode-mixed" class="mode-btn bubble-btn bg-orange-100 hover:bg-orange-200 border-4 border-orange-300 text-orange-700 font-bold text-xl py-4 rounded-2xl btn-shadow relative overflow-hidden">
+                            <span class="relative z-10">🌈 綜合大挑戰</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 選擇題數 -->
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b-4 border-blue-200 inline-block pb-1">2. 要挑戰幾題呢？</h2>
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <button onclick="selectCount(5)" id="btn-count-5" class="count-btn bubble-btn bg-gray-100 text-gray-600 font-bold text-xl py-3 px-6 rounded-full border-4 border-transparent hover:bg-blue-50">5 題</button>
+                        <button onclick="selectCount(10)" id="btn-count-10" class="count-btn bubble-btn bg-gray-100 text-gray-600 font-bold text-xl py-3 px-6 rounded-full border-4 border-transparent hover:bg-blue-50">10 題</button>
+                        <button onclick="selectCount(15)" id="btn-count-15" class="count-btn bubble-btn bg-gray-100 text-gray-600 font-bold text-xl py-3 px-6 rounded-full border-4 border-transparent hover:bg-blue-50">15 題</button>
+                        <button onclick="selectCount(20)" id="btn-count-20" class="count-btn bubble-btn bg-gray-100 text-gray-600 font-bold text-xl py-3 px-6 rounded-full border-4 border-transparent hover:bg-blue-50">20 題</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" id="btn-start" class="bubble-btn bg-blue-500 text-white font-black text-3xl py-4 px-16 rounded-full btn-shadow shadow-blue-700 hover:bg-blue-600 opacity-50 cursor-not-allowed transition-all transform scale-110" disabled>
+                出發！🚀
+            </button>
+        </div>
+
+        <!-- ==================== 遊戲畫面 ==================== -->
+        <div id="game-screen" class="hidden flex-col h-[95vh] sm:h-[85vh]">
+            
+            <!-- 頂部資訊列 -->
+            <div class="bg-blue-600 text-white p-3 flex justify-between items-center shadow-md z-10 shrink-0">
+                <button onclick="confirmExit()" class="bubble-btn bg-white/20 hover:bg-white/30 text-white p-2 rounded-xl text-sm font-bold flex items-center gap-1">
+                    <span>🏠</span> <span class="hidden sm:inline">回首頁</span>
+                </button>
+                <div class="text-xl sm:text-2xl font-black tracking-widest" id="game-title">模式名稱</div>
+                <div class="bg-white text-blue-700 px-4 py-1.5 rounded-full font-bold shadow-inner text-lg">
+                    <span id="current-q-num">1</span> / <span id="total-q-num">10</span>
+                </div>
+            </div>
+
+            <!-- 主要內容區 -->
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-50 relative">
+                
+                <!-- 報讀提示區 (如果處於錯題模式會顯示提示) -->
+                <div id="retry-banner" class="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-1 font-bold text-sm z-20 hidden shadow-md">
+                    ⚠️ 錯題複習模式
+                </div>
+
+                <!-- 左側：視覺操作與圖形區 -->
+                <div class="flex-1 p-4 flex flex-col items-center justify-center border-b-4 md:border-b-0 md:border-r-4 border-gray-200 relative overflow-y-auto">
+                    
+                    <!-- 題目文字與喇叭 -->
+                    <div class="w-full max-w-lg mb-4 bg-white p-4 rounded-2xl shadow-sm border-2 border-blue-100 flex items-start gap-4">
+                        <button onclick="playTTS()" class="bubble-btn shrink-0 w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center hover:bg-blue-200 shadow-sm mt-1">
+                            🔊
+                        </button>
+                        <h2 id="question-text" class="text-2xl sm:text-3xl font-bold text-gray-800 leading-snug">
+                            題目讀取中...
+                        </h2>
+                    </div>
+
+                    <!-- 視覺化物件區 (重要互動) -->
+                    <div class="w-full max-w-lg min-h-[160px] bg-white rounded-3xl p-4 shadow-inner border-2 border-dashed border-gray-300 mb-4 relative flex flex-col items-center justify-center">
+                        
+                        <!-- 分分看專用：分堆按鈕 -->
+                        <button id="btn-action-split" onclick="triggerSplitAnimation()" class="hidden absolute top-[-20px] bg-pink-500 text-white font-bold py-2 px-6 rounded-full shadow-lg border-2 border-white hover:bg-pink-600 bubble-btn z-10 text-lg">
+                            ✂️ 幫忙分邊
+                        </button>
+
+                        <!-- 放置 Emoji 物品的容器 -->
+                        <div id="visual-items-container" class="relative w-full h-32">
+                            <!-- 物品由 JS 動態產生並定位 -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 右側：分合圖與作答區 -->
+                <div class="flex-1 p-4 flex flex-col items-center justify-center bg-blue-50/50">
+                    
+                    <!-- 分合圖 (Number Bond) -->
+                    <div class="relative flex flex-col items-center w-full max-w-xs mb-8">
+                        
+                        <!-- 總數 (上方) -->
+                        <div id="box-total" class="number-box w-20 h-20 sm:w-24 sm:h-24 bg-white border-4 border-gray-400 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-gray-700 shadow-md z-10 cursor-pointer transition-colors">
+                            ?
+                        </div>
+                        
+                        <!-- 連接線 -->
+                        <div class="flex justify-center w-full my-[-4px]">
+                            <svg width="120" height="60" viewBox="0 0 120 60" class="overflow-visible">
+                                <path d="M60,0 L15,60" stroke="#6b7280" stroke-width="4" fill="none" stroke-linecap="round"/>
+                                <path d="M60,0 L105,60" stroke="#6b7280" stroke-width="4" fill="none" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+
+                        <!-- 兩個部分 (下方) -->
+                        <div class="flex justify-between w-[150px] sm:w-[180px] mt-[-4px]">
+                            <div id="box-part1" class="number-box w-16 h-16 sm:w-20 sm:h-20 bg-white border-4 border-gray-400 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-black text-gray-700 shadow-md z-10 cursor-pointer transition-colors">
+                                ?
+                            </div>
+                            <div id="box-part2" class="number-box w-16 h-16 sm:w-20 sm:h-20 bg-white border-4 border-gray-400 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-black text-gray-700 shadow-md z-10 cursor-pointer transition-colors">
+                                ?
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 數字鍵盤 0-10 -->
+                    <div class="w-full max-w-xs">
+                        <div class="text-center mb-2 font-bold text-gray-500">請點擊下方數字作答 👇</div>
+                        <div class="grid grid-cols-4 gap-2 sm:gap-3">
+                            <script>
+                                for(let i=1; i<=9; i++) {
+                                    document.write(`<button onclick="submitAnswer(${i})" class="bubble-btn bg-white border-b-4 border-blue-400 text-blue-700 text-2xl sm:text-3xl font-black py-2 sm:py-3 rounded-xl shadow-sm hover:bg-blue-50 active:border-b-0 active:translate-y-1">${i}</button>`);
+                                }
+                            </script>
+                            <button onclick="submitAnswer(0)" class="bubble-btn bg-white border-b-4 border-blue-400 text-blue-700 text-2xl sm:text-3xl font-black py-2 sm:py-3 rounded-xl shadow-sm hover:bg-blue-50 active:border-b-0 active:translate-y-1 col-span-2">0</button>
+                            <button onclick="submitAnswer(10)" class="bubble-btn bg-white border-b-4 border-blue-400 text-blue-700 text-2xl sm:text-3xl font-black py-2 sm:py-3 rounded-xl shadow-sm hover:bg-blue-50 active:border-b-0 active:translate-y-1 col-span-2">10</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 結算畫面 ==================== -->
+        <div id="result-screen" class="hidden flex-col items-center justify-center p-6 min-h-[80vh] relative bg-gradient-to-b from-yellow-50 to-orange-50">
+            <div class="text-8xl mb-6 animate-bounce-soft">🏆</div>
+            <h2 class="text-4xl sm:text-5xl font-black text-orange-600 mb-2">闖關完成！</h2>
+            <p id="result-message" class="text-2xl font-bold text-gray-700 mb-8">太棒了，你完成了所有挑戰！</p>
+            
+            <div class="bg-white p-8 rounded-3xl shadow-xl border-4 border-orange-200 mb-8 w-full max-w-sm text-center">
+                <div class="text-xl font-bold text-gray-500 mb-2">本次得分</div>
+                <div id="final-score" class="text-7xl font-black text-red-500">100</div>
+            </div>
+
+            <button onclick="returnToHome()" class="bubble-btn bg-orange-500 text-white font-black text-2xl py-4 px-12 rounded-full shadow-[0_6px_0_#c2410c] hover:bg-orange-600 transition-all">
+                再玩一次 🔄
+            </button>
+        </div>
+
+        <!-- ==================== 自訂彈窗與疊加層 ==================== -->
+        
+        <!-- 作答回饋疊加層 (打叉或打勾) -->
+        <div id="feedback-overlay" class="absolute inset-0 z-50 pointer-events-none hidden flex items-center justify-center bg-white/50 backdrop-blur-sm">
+            <div id="feedback-icon" class="text-9xl transform scale-50 opacity-0 transition-all duration-300"></div>
+        </div>
+
+        <!-- 確認離開彈窗 -->
+        <div id="confirm-modal" class="absolute inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-11/12 text-center transform scale-90 transition-transform" id="confirm-box">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">確定要放棄這次闖關嗎？</h3>
+                <p class="text-gray-600 mb-6 font-bold">進度將不會儲存喔！</p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="closeConfirmModal()" class="bubble-btn bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl w-1/2">繼續遊戲</button>
+                    <button onclick="returnToHome()" class="bubble-btn bg-red-500 text-white font-bold py-3 px-6 rounded-xl shadow-[0_4px_0_#b91c1c] w-1/2">確定離開</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Web Audio API 音效產生器 (不依賴外部檔案) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration, vol=0.1) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function sfxCorrect() {
+            playTone(600, 'sine', 0.1, 0.1);
+            setTimeout(() => playTone(800, 'sine', 0.2, 0.1), 100);
+        }
+
+        function sfxWrong() {
+            playTone(300, 'triangle', 0.15, 0.2);
+            setTimeout(() => playTone(250, 'triangle', 0.25, 0.2), 150);
+        }
+
+        function sfxClick() {
+            playTone(400, 'sine', 0.05, 0.05);
+        }
+
+        function sfxSplit() {
+            playTone(700, 'sine', 0.1, 0.05);
+            setTimeout(() => playTone(750, 'sine', 0.1, 0.05), 100);
+        }
+
+        function sfxWin() {
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                setTimeout(() => playTone(freq, 'sine', 0.2, 0.1), i * 150);
+            });
+        }
+
+        // --- 狀態變數 ---
+        let config = { mode: null, count: null };
+        let questions = []; // 當前關卡的所有題目
+        let currentQIndex = 0; // 目前題號索引 (0 開始)
+        let retryQuestions = []; // 儲存答錯的題目物件
+        let isRetryMode = false; // 是否進入錯題複習階段
+        let score = 100;
+        let penaltyPerWrong = 0; // 每錯一題扣幾分
+        
+        // --- 輔助函式：計算網格排列，避免圖示重疊 ---
+        function calculateOffset(index, total) {
+            if (total === 0) return { x: 0, y: 0 };
+            // 最多一排 5 個
+            let cols = Math.min(total, 5);
+            let rows = Math.ceil(total / cols);
+            let spacing = 45; // 每個圖示之間的間距 (px)
+
+            let rowIdx = Math.floor(index / cols);
+            let colIdx = index % cols;
+
+            // 計算該排實際有幾個，以便整齊置中
+            let itemsInThisRow = (rowIdx === rows - 1) ? (total - rowIdx * cols) : cols;
+            if (itemsInThisRow === 0) itemsInThisRow = cols;
+            
+            let gridW = (itemsInThisRow - 1) * spacing;
+            let gridH = (rows - 1) * spacing;
+
+            let offsetX = (colIdx * spacing) - (gridW / 2);
+            let offsetY = (rowIdx * spacing) - (gridH / 2);
+
+            return { x: offsetX, y: offsetY };
+        }
+
+        // 語音合成
+        const synth = window.speechSynthesis;
+        
+        // 常見的 Emoji 題材
+        const emojis = ['🍎', '🍓', '🏀', '⚽', '🚗', '🧸', '🍬', '🍩', '🎈', '⭐', '🐶', '🐱'];
+        const zeroEmojis = ['盤子', '空盒子', '手上']; // 0的敘述用
+
+        // --- UI 元素綁定 ---
+        const ui = {
+            home: document.getElementById('home-screen'),
+            game: document.getElementById('game-screen'),
+            result: document.getElementById('result-screen'),
+            btnStart: document.getElementById('btn-start'),
+            title: document.getElementById('game-title'),
+            curQNum: document.getElementById('current-q-num'),
+            totQNum: document.getElementById('total-q-num'),
+            qText: document.getElementById('question-text'),
+            boxTotal: document.getElementById('box-total'),
+            boxPart1: document.getElementById('box-part1'),
+            boxPart2: document.getElementById('box-part2'),
+            visContainer: document.getElementById('visual-items-container'),
+            btnSplit: document.getElementById('btn-action-split'),
+            retryBanner: document.getElementById('retry-banner'),
+            overlay: document.getElementById('feedback-overlay'),
+            icon: document.getElementById('feedback-icon'),
+            modal: document.getElementById('confirm-modal')
+        };
+
+        // --- 選單邏輯 ---
+        function selectMode(mode) {
+            sfxClick();
+            config.mode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('ring-4', 'ring-blue-500', 'scale-105');
+                btn.classList.add('opacity-70');
+            });
+            const selected = document.getElementById(`btn-mode-${mode}`);
+            selected.classList.add('ring-4', 'ring-blue-500', 'scale-105');
+            selected.classList.remove('opacity-70');
+            checkStartReady();
+        }
+
+        function selectCount(count) {
+            sfxClick();
+            config.count = count;
+            document.querySelectorAll('.count-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'scale-110', 'shadow-md');
+                btn.classList.add('bg-gray-100', 'text-gray-600', 'border-transparent');
+            });
+            const selected = document.getElementById(`btn-count-${count}`);
+            selected.classList.remove('bg-gray-100', 'text-gray-600', 'border-transparent');
+            selected.classList.add('bg-blue-500', 'text-white', 'scale-110', 'shadow-md', 'border-blue-700');
+            checkStartReady();
+        }
+
+        function checkStartReady() {
+            if (config.mode && config.count) {
+                ui.btnStart.disabled = false;
+                ui.btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // --- 題目生成系統 ---
+        function generateQuestions(mode, count) {
+            let qs = [];
+            // 避免連續出現完全一樣的題目
+            let lastTotal = -1; 
+            
+            for (let i = 0; i < count; i++) {
+                let qMode = mode;
+                if (mode === 'mixed') {
+                    const modes = ['split', 'combine', 'zero'];
+                    qMode = modes[Math.floor(Math.random() * modes.length)];
+                }
+
+                let total, part1, part2;
+                let qText, ttsText;
+                let emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                let targetBox; // 'total', 'part1', 'part2'
+
+                if (qMode === 'split') {
+                    // 分分看: 總數 2~10
+                    do { total = Math.floor(Math.random() * 9) + 2; } while(total === lastTotal && count > 5);
+                    part1 = Math.floor(Math.random() * (total - 1)) + 1; // 1 to total-1
+                    part2 = total - part1;
+                    
+                    // 決定挖空哪一個 part
+                    if (Math.random() > 0.5) {
+                        targetBox = 'part2';
+                        qText = `有 ${total} 個 ${emoji}，分成兩堆。左邊有 ${part1} 個，右邊有幾個？`;
+                    } else {
+                        targetBox = 'part1';
+                        qText = `有 ${total} 個 ${emoji}，分成兩堆。右邊有 ${part2} 個，左邊有幾個？`;
+                    }
+                    ttsText = qText.replace(/ /g, '');
+
+                } else if (qMode === 'combine') {
+                    // 合起來: 總數 2~10
+                    do { total = Math.floor(Math.random() * 9) + 2; } while(total === lastTotal && count > 5);
+                    part1 = Math.floor(Math.random() * (total - 1)) + 1;
+                    part2 = total - part1;
+                    targetBox = 'total';
+                    
+                    qText = `左邊 ${part1} 個 ${emoji}，右邊 ${part2} 個 ${emoji}，合起來共有幾個？`;
+                    ttsText = qText.replace(/ /g, '');
+
+                } else if (qMode === 'zero') {
+                    // 0 的認識: 涉及 0 的分合
+                    let isZeroSplit = Math.random() > 0.5;
+                    total = Math.floor(Math.random() * 10) + 1; // 1~10
+                    
+                    if (isZeroSplit) {
+                        // 分合中有一部分是 0 (例如: 全拿走)
+                        part1 = total;
+                        part2 = 0;
+                        let item = zeroEmojis[Math.floor(Math.random()*zeroEmojis.length)];
+                        targetBox = 'part2';
+                        qText = `${item}裡有 ${total} 個 ${emoji}，全部拿走 ${part1} 個，剩下幾個？`;
+                    } else {
+                        // 合起來有 0 (例如: 一邊沒東西)
+                        part1 = total;
+                        part2 = 0;
+                        targetBox = 'total';
+                        qText = `左邊 ${part1} 個 ${emoji}，右邊沒有(0個)，合起來是幾個？`;
+                    }
+                    // 隨機交換 part1, part2 顯示位置
+                    if(Math.random() > 0.5) { [part1, part2] = [part2, part1]; }
+                    ttsText = qText.replace(/ /g, '');
+                }
+
+                lastTotal = total;
+                qs.push({
+                    id: i,
+                    mode: qMode,
+                    total, part1, part2,
+                    targetBox,
+                    emoji,
+                    qText, ttsText,
+                    hasSplit: false // 紀錄是否已經按過分堆按鈕
+                });
+            }
+            return qs;
+        }
+
+        function startGame() {
+            sfxClick();
+            // 解鎖語音
+            if (synth) synth.speak(new SpeechSynthesisUtterance(""));
+            
+            questions = generateQuestions(config.mode, config.count);
+            currentQIndex = 0;
+            retryQuestions = [];
+            isRetryMode = false;
+            score = 100;
+            penaltyPerWrong = Math.floor(100 / config.count); // 粗略計分
+
+            // 設定標題
+            const titleMap = { 'split': '分分看', 'combine': '合起來', 'zero': '0的認識', 'mixed': '綜合挑戰' };
+            ui.title.innerText = titleMap[config.mode];
+            ui.totQNum.innerText = questions.length;
+
+            ui.home.classList.add('hidden');
+            ui.game.classList.remove('hidden');
+            ui.game.classList.add('flex');
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const isRetry = isRetryMode;
+            const qList = isRetry ? retryQuestions : questions;
+            const q = qList[currentQIndex];
+
+            // 更新進度顯示
+            ui.retryBanner.style.display = isRetry ? 'block' : 'none';
+            ui.curQNum.innerText = currentQIndex + 1;
+            ui.totQNum.innerText = qList.length;
+
+            ui.qText.innerHTML = q.qText;
+            
+            // 重置分合圖樣式與文字
+            ['total', 'part1', 'part2'].forEach(part => {
+                const box = ui[`box${part.charAt(0).toUpperCase() + part.slice(1)}`];
+                box.classList.remove('border-yellow-400', 'bg-yellow-100', 'animate-pulse', 'text-blue-600');
+                box.classList.add('border-gray-400', 'bg-white', 'text-gray-700');
+                
+                if (q.targetBox === part) {
+                    box.innerText = '?';
+                    box.classList.add('border-yellow-400', 'bg-yellow-100', 'animate-pulse', 'text-blue-600');
+                } else {
+                    box.innerText = q[part];
+                }
+            });
+
+            renderVisuals(q);
+            
+            // 自動讀題
+            setTimeout(playTTS, 600);
+        }
+
+        function renderVisuals(q) {
+            ui.visContainer.innerHTML = '';
+            ui.btnSplit.classList.add('hidden');
+
+            if (q.mode === 'split') {
+                // 分分看：一開始顯示一堆(總數)，如果是第一次玩這題，顯示「分」按鈕
+                if (!q.hasSplit) {
+                    ui.btnSplit.classList.remove('hidden');
+                    let leftCount = 0;
+                    let rightCount = 0;
+                    // 集中畫在中間，排成整齊網格
+                    for(let i=0; i<q.total; i++) {
+                        let el = document.createElement('div');
+                        el.className = 'absolute text-4xl item-transition drop-shadow-md';
+                        el.innerText = q.emoji;
+                        
+                        // 儲存目標位置資料與分邊索引，供按鈕點擊後使用
+                        let side = i < q.part1 ? 'left' : 'right';
+                        el.dataset.part = side;
+                        el.dataset.sideIndex = side === 'left' ? leftCount++ : rightCount++;
+                        
+                        let offset = calculateOffset(i, q.total);
+                        el.style.left = `calc(50% - 20px + ${offset.x}px)`;
+                        el.style.top = `calc(50% - 20px + ${offset.y}px)`;
+                        
+                        ui.visContainer.appendChild(el);
+                    }
+                } else {
+                    // 已經分過了，直接顯示兩堆
+                    drawTwoPiles(q);
+                }
+
+            } else {
+                // 合起來 / 0的認識：直接顯示兩堆
+                drawTwoPiles(q);
+            }
+        }
+
+        function drawTwoPiles(q) {
+            // 左邊的堆疊
+            for(let i=0; i<q.part1; i++) {
+                let el = document.createElement('div');
+                el.className = 'absolute text-4xl drop-shadow-md';
+                el.innerText = q.emoji;
+                let offset = calculateOffset(i, q.part1);
+                el.style.left = `calc(25% - 20px + ${offset.x}px)`;
+                el.style.top = `calc(50% - 20px + ${offset.y}px)`;
+                ui.visContainer.appendChild(el);
+            }
+            
+            // 右邊的堆疊
+            for(let i=0; i<q.part2; i++) {
+                let el = document.createElement('div');
+                el.className = 'absolute text-4xl drop-shadow-md';
+                el.innerText = q.emoji;
+                let offset = calculateOffset(i, q.part2);
+                el.style.left = `calc(75% - 20px + ${offset.x}px)`;
+                el.style.top = `calc(50% - 20px + ${offset.y}px)`;
+                ui.visContainer.appendChild(el);
+            }
+
+            // 畫一條虛線分隔左右
+            if (q.part1 > 0 || q.part2 > 0) {
+                let divider = document.createElement('div');
+                divider.className = 'absolute left-1/2 top-4 bottom-4 w-0 border-l-2 border-dashed border-gray-300';
+                ui.visContainer.appendChild(divider);
+            }
+        }
+
+        function triggerSplitAnimation() {
+            sfxSplit();
+            ui.btnSplit.classList.add('hidden');
+            
+            // 標記這題已經分過
+            const qList = isRetryMode ? retryQuestions : questions;
+            const q = qList[currentQIndex];
+            q.hasSplit = true;
+
+            const items = ui.visContainer.querySelectorAll('div[data-part]');
+            
+            // 畫分隔線
+            let divider = document.createElement('div');
+            divider.className = 'absolute left-1/2 top-4 bottom-4 w-0 border-l-2 border-dashed border-gray-300 opacity-0 transition-opacity duration-500';
+            ui.visContainer.appendChild(divider);
+
+            setTimeout(() => { divider.classList.remove('opacity-0'); }, 300);
+
+            // 移動物件至左右兩邊網格
+            items.forEach(el => {
+                let side = el.dataset.part;
+                let sideIndex = parseInt(el.dataset.sideIndex);
+                let totalInGroup = side === 'left' ? q.part1 : q.part2;
+                
+                let offset = calculateOffset(sideIndex, totalInGroup);
+                let baseLeft = side === 'left' ? 25 : 75;
+                
+                el.style.left = `calc(${baseLeft}% - 20px + ${offset.x}px)`;
+                el.style.top = `calc(50% - 20px + ${offset.y}px)`;
+            });
+        }
+
+        function submitAnswer(num) {
+            const qList = isRetryMode ? retryQuestions : questions;
+            const q = qList[currentQIndex];
+            const targetAns = q[q.targetBox];
+
+            const targetEl = document.getElementById(`box-${q.targetBox}`);
+
+            if (num === targetAns) {
+                // 答對
+                sfxCorrect();
+                showFeedback(true);
+                
+                // 填入數字並停止閃爍
+                targetEl.innerText = num;
+                targetEl.classList.remove('animate-pulse', 'bg-yellow-100');
+                targetEl.classList.add('bg-green-100', 'text-green-700', 'border-green-500');
+
+                setTimeout(() => {
+                    nextQuestion();
+                }, 1200);
+
+            } else {
+                // 答錯
+                sfxWrong();
+                showFeedback(false);
+                targetEl.classList.add('animate-shake', 'bg-red-100');
+                
+                // 如果是第一次答這題(非錯題複習階段)，扣分並加入錯題清單
+                if (!isRetryMode) {
+                    if (!retryQuestions.find(rq => rq.id === q.id)) {
+                        score = Math.max(0, score - penaltyPerWrong);
+                        // 深拷貝加入錯題，重置 hasSplit 讓學生複習時可以再分一次
+                        let retryQ = JSON.parse(JSON.stringify(q));
+                        retryQ.hasSplit = false; 
+                        retryQuestions.push(retryQ);
+                    }
+                }
+
+                setTimeout(() => {
+                    targetEl.classList.remove('animate-shake', 'bg-red-100');
+                }, 500);
+            }
+        }
+
+        function showFeedback(isCorrect) {
+            ui.overlay.classList.remove('hidden');
+            ui.icon.innerText = isCorrect ? '⭕' : '❌';
+            ui.icon.className = `text-8xl transform transition-all duration-300 scale-100 opacity-100 drop-shadow-xl ${isCorrect ? 'text-green-500' : 'text-red-500'}`;
+            
+            setTimeout(() => {
+                ui.icon.classList.remove('scale-100', 'opacity-100');
+                ui.icon.classList.add('scale-50', 'opacity-0');
+                setTimeout(() => { ui.overlay.classList.add('hidden'); }, 300);
+            }, 800);
+        }
+
+        function nextQuestion() {
+            if (synth) synth.cancel(); // 停止語音
+            
+            const qList = isRetryMode ? retryQuestions : questions;
+            currentQIndex++;
+
+            if (currentQIndex < qList.length) {
+                // 繼續下一題
+                loadQuestion();
+            } else {
+                // 本階段結束
+                if (!isRetryMode && retryQuestions.length > 0) {
+                    // 進入錯題複習
+                    isRetryMode = true;
+                    currentQIndex = 0;
+                    
+                    // 提示進入複習模式
+                    ui.qText.innerHTML = `<span class="text-red-500">有幾題剛才不小心答錯了，我們再來挑戰一次！</span>`;
+                    ui.visContainer.innerHTML = '💪';
+                    ui.visContainer.className = "w-full max-w-lg min-h-[160px] bg-white rounded-3xl flex items-center justify-center text-7xl animate-bounce-soft";
+                    ['total', 'part1', 'part2'].forEach(p => ui[`box${p.charAt(0).toUpperCase() + p.slice(1)}`].innerText = '');
+                    
+                    setTimeout(() => {
+                        ui.visContainer.className = "w-full max-w-lg min-h-[160px] bg-white rounded-3xl p-4 shadow-inner border-2 border-dashed border-gray-300 mb-4 relative flex flex-col items-center justify-center";
+                        loadQuestion();
+                    }, 2500);
+
+                } else {
+                    // 全過關 (可能是一次通關，也可能是複習完了)
+                    showResult();
+                }
+            }
+        }
+
+        function playTTS() {
+            if (!synth) return;
+            synth.cancel();
+            
+            const qList = isRetryMode ? retryQuestions : questions;
+            if(!qList[currentQIndex]) return;
+
+            let text = qList[currentQIndex].ttsText;
+            let utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-TW';
+            utterance.rate = 0.85; // 稍微放慢
+            utterance.pitch = 1.1;
+            synth.speak(utterance);
+        }
+
+        function showResult() {
+            sfxWin();
+            ui.game.classList.remove('flex');
+            ui.game.classList.add('hidden');
+            ui.result.classList.remove('hidden');
+            ui.result.classList.add('flex');
+
+            document.getElementById('final-score').innerText = score;
+            
+            let msg = "";
+            if(score === 100) msg = "太厲害了！全部答對，你是數學小天才！🌟";
+            else if(score >= 80) msg = "很棒喔！只有一點點小錯誤，繼續加油！👍";
+            else msg = "完成挑戰！多練習幾次，你會越來越熟練的！💪";
+            
+            document.getElementById('result-message').innerText = msg;
+            
+            if(synth) {
+                synth.cancel();
+                let u = new SpeechSynthesisUtterance("過關了！" + msg);
+                u.lang = 'zh-TW';
+                synth.speak(u);
+            }
+        }
+
+        function confirmExit() {
+            sfxClick();
+            ui.modal.classList.remove('hidden');
+            ui.modal.classList.add('flex');
+            setTimeout(() => {
+                document.getElementById('confirm-box').classList.remove('scale-90');
+                document.getElementById('confirm-box').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeConfirmModal() {
+            sfxClick();
+            document.getElementById('confirm-box').classList.remove('scale-100');
+            document.getElementById('confirm-box').classList.add('scale-90');
+            setTimeout(() => {
+                ui.modal.classList.remove('flex');
+                ui.modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function returnToHome() {
+            sfxClick();
+            if(synth) synth.cancel();
+            closeConfirmModal();
+            
+            ui.game.classList.add('hidden');
+            ui.game.classList.remove('flex');
+            ui.result.classList.add('hidden');
+            ui.result.classList.remove('flex');
+            
+            ui.home.classList.remove('hidden');
+            ui.home.classList.add('flex');
+            
+            // 重置選擇
+            config = { mode: null, count: null };
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('ring-4', 'ring-blue-500', 'scale-105', 'opacity-70');
+            });
+            document.querySelectorAll('.count-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'scale-110', 'shadow-md');
+                btn.classList.add('bg-gray-100', 'text-gray-600', 'border-transparent');
+            });
+            ui.btnStart.disabled = true;
+            ui.btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+    </script>
+</body>
+</html>
